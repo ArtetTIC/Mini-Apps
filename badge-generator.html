@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BadgePrint — Générateur de badges</title>
+
+<!-- ============================================================
+     BIBLIOTHÈQUES EXTERNES
+     - jsPDF  : génération PDF côté navigateur
+     - html2canvas : capture des pages pour le PDF/JPG
+============================================================ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<style>
+/* ============================================================
+   VARIABLES CSS — Modifiez ici pour changer le thème global
+============================================================ */
+:root {
+  --bg: #0e0e12;
+  --surface: #16161d;
+  --surface2: #1e1e28;
+  --border: #2a2a38;
+  --accent: #f0c040;
+  --accent2: #e07030;
+  --text: #e8e8f0;
+  --text-muted: #7878a0;
+  --radius: 10px;
+  --font-ui: 'DM Mono', 'Courier New', monospace;
+  --font-display: Georgia, 'Times New Roman', serif;
+}
+
+/* ============================================================
+   RESET & BASE
+============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============================================================
+   HEADER
+============================================================ */
+header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 28px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.logo {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: bold;
+  letter-spacing: -0.5px;
+  color: var(--accent);
+}
+.logo span { color: var(--accent2); }
+
+.tagline {
+  color: var(--text-muted);
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+header .actions { margin-left: auto; display: flex; gap: 10px; }
+
+/* ============================================================
+   BOUTONS
+============================================================ */
+.btn {
+  padding: 8px 18px;
+  border: none;
+  border-radius: var(--radius);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.btn-primary {
+  background: var(--accent);
+  color: #111;
+}
+.btn-primary:hover { background: #ffd060; transform: translateY(-1px); }
+
+.btn-secondary {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+.btn-danger {
+  background: transparent;
+  color: #e05050;
+  border: 1px solid #e05050;
+}
+.btn-danger:hover { background: #e05050; color: white; }
+
+/* ============================================================
+   LAYOUT PRINCIPAL : sidebar + prévisualisation
+============================================================ */
+.app-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  height: calc(100vh - 57px);
+}
+
+/* ============================================================
+   SIDEBAR (panneau de configuration)
+============================================================ */
+.sidebar {
+  width: 340px;
+  min-width: 300px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 0 0 40px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.sidebar-section {
+  border-bottom: 1px solid var(--border);
+  padding: 20px 20px;
+}
+
+.section-title {
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.section-title::before {
+  content: '';
+  display: block;
+  width: 3px;
+  height: 14px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+/* ============================================================
+   CHAMPS DE FORMULAIRE
+============================================================ */
+label {
+  display: block;
+  color: var(--text-muted);
+  font-size: 11px;
+  margin-bottom: 5px;
+  letter-spacing: 0.5px;
+}
+
+input[type="text"],
+input[type="number"],
+select,
+textarea {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  padding: 8px 12px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent);
+}
+
+input[type="color"] {
+  width: 40px;
+  height: 32px;
+  padding: 2px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  cursor: pointer;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.form-group { margin-bottom: 10px; }
+
+.color-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.color-row input[type="text"] { flex: 1; }
+
+/* ============================================================
+   UPLOAD ZONE (arrière-plan du badge)
+============================================================ */
+.upload-zone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.upload-zone:hover { border-color: var(--accent); }
+.upload-zone.has-image { border-color: var(--accent2); border-style: solid; }
+.upload-zone img {
+  max-width: 100%;
+  max-height: 80px;
+  border-radius: 4px;
+  display: block;
+  margin: 0 auto 8px;
+}
+.upload-zone p { color: var(--text-muted); font-size: 11px; }
+.upload-zone input[type="file"] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+}
+
+/* ============================================================
+   TOGGLE (auto-size texte)
+============================================================ */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.toggle {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  cursor: pointer;
+}
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: var(--border);
+  border-radius: 20px;
+  transition: 0.2s;
+}
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  left: 3px; top: 3px;
+  width: 14px; height: 14px;
+  background: white;
+  border-radius: 50%;
+  transition: 0.2s;
+}
+.toggle input:checked + .toggle-slider { background: var(--accent); }
+.toggle input:checked + .toggle-slider::before { transform: translateX(16px); }
+
+/* ============================================================
+   TABLEAU CSV / LISTING
+============================================================ */
+textarea#csvInput {
+  height: 130px;
+  resize: vertical;
+  font-size: 11px;
+  line-height: 1.6;
+  font-family: var(--font-ui);
+}
+
+.csv-stats {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+/* ============================================================
+   MAPPING DES COLONNES
+============================================================ */
+.mapping-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 10px;
+  align-items: center;
+  margin-top: 8px;
+}
+.mapping-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* ============================================================
+   CHAMPS TEXTE POSITIONNEMENT (X, Y par champ)
+============================================================ */
+.field-position-block {
+  background: var(--surface2);
+  border-radius: var(--radius);
+  padding: 10px;
+  margin-bottom: 8px;
+}
+.field-pos-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+.field-pos-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+}
+
+/* ============================================================
+   ZONE DE PRÉVISUALISATION
+============================================================ */
+.preview-area {
+  flex: 1;
+  background: #111118;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 30px 20px;
+  gap: 20px;
+}
+
+.preview-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 16px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  width: 100%;
+  max-width: 800px;
+}
+
+.preview-info {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+/* ============================================================
+   PAGE A4 DE PRÉVISUALISATION
+============================================================ */
+.a4-page {
+  background: white;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+  position: relative;
+  /* Taille A4 à 96dpi pour l'écran : 794 x 1123px */
+  width: 794px;
+  height: 1123px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   UN BADGE INDIVIDUEL (dans la page de prévisualisation)
+============================================================ */
+.badge-item {
+  position: absolute;
+  overflow: hidden;
+  background: #f0f0f0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.badge-item .badge-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.badge-item .badge-fields {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.badge-field {
+  position: absolute;
+  width: 100%;
+  text-align: center;
+  line-height: 1.2;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: 0 4px;
+}
+
+/* ============================================================
+   MESSAGES D'ÉTAT
+============================================================ */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-muted);
+  padding: 60px 20px;
+  text-align: center;
+}
+.empty-state .icon { font-size: 48px; opacity: 0.3; }
+
+/* ============================================================
+   PROGRESS BAR (export)
+============================================================ */
+.progress-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+.progress-overlay.active { display: flex; }
+.progress-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 32px 40px;
+  text-align: center;
+  min-width: 300px;
+}
+.progress-bar-track {
+  height: 6px;
+  background: var(--border);
+  border-radius: 6px;
+  margin-top: 16px;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 6px;
+  transition: width 0.3s ease;
+  width: 0%;
+}
+.progress-label { margin-top: 10px; font-size: 11px; color: var(--text-muted); }
+
+/* ============================================================
+   SCROLLBAR PERSONNALISÉE
+============================================================ */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ============================================================
+   BADGE DE COMPTE
+============================================================ */
+.badge-count-pill {
+  background: var(--accent);
+  color: #111;
+  border-radius: 20px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: bold;
+}
+
+/* ============================================================
+   TOOLTIP AIDE
+============================================================ */
+.help-text {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+/* ============================================================
+   SEPARATEUR
+============================================================ */
+hr.sep { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     HEADER
+============================================================ -->
+<header>
+  <div>
+    <div class="logo">Badge<span>Print</span></div>
+    <div class="tagline">Générateur de badges A4</div>
+  </div>
+  <div class="actions">
+    <button class="btn btn-secondary" onclick="exportJPG()">⬇ Export JPG</button>
+    <button class="btn btn-primary" onclick="exportPDF()">⬇ Export PDF</button>
+  </div>
+</header>
+
+<!-- ============================================================
+     OVERLAY DE PROGRESSION (export)
+============================================================ -->
+<div class="progress-overlay" id="progressOverlay">
+  <div class="progress-box">
+    <div style="font-size:16px; margin-bottom:8px;">⚙ Export en cours…</div>
+    <div class="progress-bar-track">
+      <div class="progress-bar-fill" id="progressFill"></div>
+    </div>
+    <div class="progress-label" id="progressLabel">Initialisation…</div>
+  </div>
+</div>
+
+<!-- ============================================================
+     CORPS PRINCIPAL
+============================================================ -->
+<div class="app-body">
+
+  <!-- ========================================================
+       SIDEBAR — PANNEAU DE CONFIGURATION
+  ======================================================== -->
+  <aside class="sidebar">
+
+    <!-- === 1. ARRIÈRE-PLAN DU BADGE === -->
+    <div class="sidebar-section">
+      <div class="section-title">1 — Arrière-plan</div>
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="bgFileInput" accept="image/png,image/jpeg,image/gif,image/webp" onchange="loadBgImage(event)">
+        <div id="uploadZoneContent">
+          <p style="font-size:24px; margin-bottom:6px;">🖼</p>
+          <p>Cliquez ou glissez votre image ici</p>
+          <p style="margin-top:4px; font-size:10px;">PNG, JPG, GIF, WEBP</p>
+        </div>
+      </div>
+      <div class="help-text">L'image sera utilisée comme fond de chaque badge.</div>
+    </div>
+
+    <!-- === 2. TAILLE & MISE EN PAGE === -->
+    <div class="sidebar-section">
+      <div class="section-title">2 — Taille & Mise en page</div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Largeur badge (mm)</label>
+          <!-- ⚙ Modifiez la largeur par défaut ici -->
+          <input type="number" id="badgeW" value="85" min="10" max="200" onchange="renderPreview()">
+        </div>
+        <div class="form-group">
+          <label>Hauteur badge (mm)</label>
+          <!-- ⚙ Modifiez la hauteur par défaut ici -->
+          <input type="number" id="badgeH" value="55" min="10" max="200" onchange="renderPreview()">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Marge gauche (mm)</label>
+          <input type="number" id="marginLeft" value="10" min="0" max="50" onchange="renderPreview()">
+        </div>
+        <div class="form-group">
+          <label>Marge haut (mm)</label>
+          <input type="number" id="marginTop" value="15" min="0" max="50" onchange="renderPreview()">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Espacement H (mm)</label>
+          <input type="number" id="gapH" value="5" min="0" max="30" onchange="renderPreview()">
+        </div>
+        <div class="form-group">
+          <label>Espacement V (mm)</label>
+          <input type="number" id="gapV" value="5" min="0" max="30" onchange="renderPreview()">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Badges par page (auto-calculé)</label>
+        <input type="text" id="badgesPerPageInfo" readonly value="—" style="background:var(--bg); color:var(--accent);">
+      </div>
+    </div>
+
+    <!-- === 3. LISTING / CSV === -->
+    <div class="sidebar-section">
+      <div class="section-title">3 — Listing <span class="badge-count-pill" id="badgeCountPill">0</span></div>
+      <div class="form-group">
+        <label>Collez votre tableau (séparateur : tabulation ou virgule)</label>
+        <textarea id="csvInput" placeholder="Nom,Prénom,Rôle&#10;Martin,Sophie,Participant&#10;Dupont,Jean,Intervenant&#10;…" onchange="parseCSV()" oninput="parseCSV()"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="toggle-row" style="margin:0">
+          <span>La première ligne est un en-tête</span>
+          <label class="toggle">
+            <input type="checkbox" id="hasHeader" checked onchange="parseCSV()">
+            <span class="toggle-slider"></span>
+          </label>
+        </label>
+      </div>
+      <div class="csv-stats" id="csvStats">Aucune donnée.</div>
+      <div style="margin-top:10px">
+        <button class="btn btn-secondary" style="width:100%" onclick="loadSampleData()">Charger les données d'exemple</button>
+      </div>
+    </div>
+
+    <!-- === 4. MAPPING DES COLONNES === -->
+    <div class="sidebar-section" id="mappingSection" style="display:none">
+      <div class="section-title">4 — Colonnes → Champs</div>
+      <p class="help-text">Associez chaque colonne de votre tableau à un champ du badge.</p>
+      <div id="mappingGrid" class="mapping-grid"></div>
+    </div>
+
+    <!-- === 5. STYLE DU TEXTE === -->
+    <div class="sidebar-section">
+      <div class="section-title">5 — Style du texte</div>
+
+      <!-- ⚙ CHAMP 1 : Nom principal -->
+      <div class="field-position-block">
+        <div class="field-pos-title">⬤ Champ 1 (ex : Nom)</div>
+        <div class="form-group">
+          <label>Typographie</label>
+          <!-- ⚙ Ajoutez des polices ici en ajoutant des <option> -->
+          <select id="font1" onchange="renderPreview()">
+            <option value="'Georgia', serif">Georgia (Classique)</option>
+            <option value="'Arial Black', sans-serif">Arial Black (Gras)</option>
+            <option value="'Courier New', monospace">Courier New (Mono)</option>
+            <option value="'Trebuchet MS', sans-serif">Trebuchet MS (Moderne)</option>
+            <option value="'Palatino Linotype', serif">Palatino (Élégant)</option>
+          </select>
+        </div>
+        <div class="field-pos-row">
+          <div class="form-group">
+            <label>Couleur</label>
+            <input type="color" id="color1" value="#1a1a2e" onchange="renderPreview()">
+          </div>
+          <div class="form-group">
+            <label>Taille (px)</label>
+            <input type="number" id="size1" value="18" min="6" max="80" onchange="renderPreview()">
+          </div>
+          <div class="form-group">
+            <label>Y (%)</label>
+            <!-- ⚙ Position verticale du champ 1 (0=haut, 100=bas) -->
+            <input type="number" id="y1" value="60" min="0" max="100" onchange="renderPreview()">
+          </div>
+        </div>
+        <div class="toggle-row">
+          <span style="color:var(--text-muted);font-size:11px">Taille auto</span>
+          <label class="toggle">
+            <input type="checkbox" id="autoSize1" onchange="renderPreview()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- ⚙ CHAMP 2 : Prénom ou 2e champ -->
+      <div class="field-position-block">
+        <div class="field-pos-title">⬤ Champ 2 (ex : Prénom)</div>
+        <div class="form-group">
+          <label>Typographie</label>
+          <select id="font2" onchange="renderPreview()">
+            <option value="'Georgia', serif">Georgia (Classique)</option>
+            <option value="'Arial Black', sans-serif">Arial Black (Gras)</option>
+            <option value="'Courier New', monospace">Courier New (Mono)</option>
+            <option value="'Trebuchet MS', sans-serif" selected>Trebuchet MS (Moderne)</option>
+            <option value="'Palatino Linotype', serif">Palatino (Élégant)</option>
+          </select>
+        </div>
+        <div class="field-pos-row">
+          <div class="form-group">
+            <label>Couleur</label>
+            <input type="color" id="color2" value="#2d2d5a" onchange="renderPreview()">
+          </div>
+          <div class="form-group">
+            <label>Taille (px)</label>
+            <input type="number" id="size2" value="13" min="6" max="80" onchange="renderPreview()">
+          </div>
+          <div class="form-group">
+            <label>Y (%)</label>
+            <!-- ⚙ Position verticale du champ 2 -->
+            <input type="number" id="y2" value="73" min="0" max="100" onchange="renderPreview()">
+          </div>
+        </div>
+        <div class="toggle-row">
+          <span style="color:var(--text-muted);font-size:11px">Taille auto</span>
+          <label class="toggle">
+            <input type="checkbox" id="autoSize2" onchange="renderPreview()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- ⚙ CHAMP 3 : Rôle ou 3e champ -->
+      <div class="field-position-block">
+        <div class="field-pos-title">⬤ Champ 3 (ex : Rôle)</div>
+        <div class="form-group">
+          <label>Typographie</label>
+          <select id="font3" onchange="renderPreview()">
+            <option value="'Georgia', serif">Georgia (Classique)</option>
+            <option value="'Arial Black', sans-serif">Arial Black (Gras)</option>
+            <option value="'Courier New', monospace" selected>Courier New (Mono)</option>
+            <option value="'Trebuchet MS', sans-serif">Trebuchet MS (Moderne)</option>
+            <option value="'Palatino Linotype', serif">Palatino (Élégant)</option>
+          </select>
+        </div>
+        <div class="field-pos-row">
+          <div class="form-group">
+            <label>Couleur</label>
+            <input type="color" id="color3" value="#c0392b" onchange="renderPreview()">
+          </div>
+          <div class="form-group">
+            <label>Taille (px)</label>
+            <input type="number" id="size3" value="10" min="6" max="80" onchange="renderPreview()">
+          </div>
+          <div class="form-group">
+            <label>Y (%)</label>
+            <!-- ⚙ Position verticale du champ 3 -->
+            <input type="number" id="y3" value="84" min="0" max="100" onchange="renderPreview()">
+          </div>
+        </div>
+        <div class="toggle-row">
+          <span style="color:var(--text-muted);font-size:11px">Taille auto</span>
+          <label class="toggle">
+            <input type="checkbox" id="autoSize3" onchange="renderPreview()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+  </aside><!-- /sidebar -->
+
+  <!-- ========================================================
+       ZONE DE PRÉVISUALISATION
+  ======================================================== -->
+  <main class="preview-area" id="previewArea">
+
+    <div class="preview-toolbar">
+      <strong style="font-size:12px">PRÉVISUALISATION</strong>
+      <span id="pageInfo" class="preview-info">— page(s)</span>
+    </div>
+
+    <div id="pagesContainer">
+      <!-- Les pages A4 sont générées ici par renderPreview() -->
+      <div class="empty-state">
+        <div class="icon">📋</div>
+        <div>Collez vos données dans le panneau gauche<br>pour voir la prévisualisation des badges.</div>
+        <button class="btn btn-secondary" onclick="loadSampleData()" style="margin-top:10px">Charger un exemple</button>
+      </div>
+    </div>
+
+  </main>
+
+</div><!-- /app-body -->
+
+<!-- ============================================================
+     JAVASCRIPT PRINCIPAL
+============================================================ -->
+<script>
+// ============================================================
+// CONSTANTES A4
+// A4 = 210 x 297 mm
+// À l'écran (96dpi), 1mm ≈ 3.7795px → 210mm = 794px, 297mm = 1123px
+// Pour le PDF avec jsPDF (72dpi), on travaille en mm directement.
+// ============================================================
+const A4_W_MM  = 210;  // Largeur A4 en mm
+const A4_H_MM  = 297;  // Hauteur A4 en mm
+const MM_TO_PX = 3.7795527; // facteur de conversion mm→px (96dpi)
+
+// ============================================================
+// ÉTAT GLOBAL DE L'APPLICATION
+// ============================================================
+let bgImageDataUrl = null;  // Data URL de l'image de fond du badge
+let parsedData     = [];    // Tableau de lignes parsées depuis le CSV
+let csvHeaders     = [];    // En-têtes des colonnes
+
+// Mapping colonnes : quelle colonne CSV → quel champ (1, 2, 3)
+// ⚙ Modifiez les indices par défaut ici (0 = première colonne)
+let colMap = { field1: 0, field2: 1, field3: 2 };
+
+// ============================================================
+// 1. CHARGEMENT DE L'IMAGE DE FOND
+// ============================================================
+function loadBgImage(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    bgImageDataUrl = e.target.result;
+
+    // Mise à jour visuelle de la zone d'upload
+    const zone = document.getElementById('uploadZone');
+    zone.classList.add('has-image');
+    document.getElementById('uploadZoneContent').innerHTML =
+      `<img src="${bgImageDataUrl}" alt="Fond du badge">
+       <p style="color:var(--accent)">${file.name}</p>
+       <p>Cliquez pour changer</p>`;
+
+    renderPreview();
+  };
+  reader.readAsDataURL(file);
+}
+
+// Gestion du glisser-déposer sur la zone d'upload
+const uploadZone = document.getElementById('uploadZone');
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.style.borderColor = 'var(--accent)'; });
+uploadZone.addEventListener('dragleave', () => { uploadZone.style.borderColor = ''; });
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.style.borderColor = '';
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    const fakeEvent = { target: { files: [file] } };
+    loadBgImage(fakeEvent);
+  }
+});
+
+// ============================================================
+// 2. PARSE CSV / TABLEAU
+// Supporte : tabulation, virgule, point-virgule comme séparateurs
+// ============================================================
+function parseCSV() {
+  const raw = document.getElementById('csvInput').value.trim();
+  if (!raw) {
+    parsedData = [];
+    csvHeaders = [];
+    updateCSVStats();
+    renderPreview();
+    return;
+  }
+
+  // Détection automatique du séparateur
+  const firstLine = raw.split('\n')[0];
+  let sep = '\t';
+  if (firstLine.includes(';')) sep = ';';
+  else if (firstLine.includes(',') && !firstLine.includes('\t')) sep = ',';
+
+  const lines = raw.split('\n').map(l => l.split(sep).map(c => c.trim()));
+
+  const hasHeader = document.getElementById('hasHeader').checked;
+  if (hasHeader && lines.length > 0) {
+    csvHeaders = lines[0];
+    parsedData = lines.slice(1).filter(l => l.some(c => c !== ''));
+  } else {
+    // Générer des en-têtes automatiques (Colonne 1, 2, …)
+    csvHeaders = lines[0].map((_, i) => `Colonne ${i + 1}`);
+    parsedData = lines.filter(l => l.some(c => c !== ''));
+  }
+
+  updateCSVStats();
+  updateMappingUI();
+  renderPreview();
+}
+
+function updateCSVStats() {
+  const statsEl = document.getElementById('csvStats');
+  const countEl = document.getElementById('badgeCountPill');
+  const n = parsedData.length;
+  statsEl.textContent = n > 0
+    ? `${n} badge${n > 1 ? 's' : ''} détecté${n > 1 ? 's' : ''} — ${csvHeaders.length} colonne${csvHeaders.length > 1 ? 's' : ''}`
+    : 'Aucune donnée.';
+  countEl.textContent = n;
+}
+
+// ============================================================
+// 3. INTERFACE DE MAPPING COLONNES → CHAMPS
+// Permet à l'utilisateur d'associer chaque colonne à un champ affiché
+// ============================================================
+function updateMappingUI() {
+  const section = document.getElementById('mappingSection');
+  const grid    = document.getElementById('mappingGrid');
+
+  if (csvHeaders.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = 'block';
+
+  // Génère les options pour chaque champ (+ option "Aucun")
+  const makeOptions = (selectedIdx) => {
+    let opts = '<option value="-1">— Aucun —</option>';
+    csvHeaders.forEach((h, i) => {
+      opts += `<option value="${i}" ${i === selectedIdx ? 'selected' : ''}>${h}</option>`;
+    });
+    return opts;
+  };
+
+  // ⚙ Noms des champs affichés dans le mapping — modifiables
+  grid.innerHTML = `
+    <span class="mapping-label">Champ 1 (Nom/Principal)</span>
+    <select onchange="colMap.field1=+this.value; renderPreview()">${makeOptions(colMap.field1)}</select>
+    <span class="mapping-label">Champ 2 (Prénom/Secondaire)</span>
+    <select onchange="colMap.field2=+this.value; renderPreview()">${makeOptions(colMap.field2)}</select>
+    <span class="mapping-label">Champ 3 (Rôle/Autre)</span>
+    <select onchange="colMap.field3=+this.value; renderPreview()">${makeOptions(colMap.field3)}</select>
+  `;
+}
+
+// ============================================================
+// 4. DONNÉES D'EXEMPLE (bouton "Charger l'exemple")
+// ⚙ Modifiez les données de test ici
+// ============================================================
+function loadSampleData() {
+  document.getElementById('csvInput').value =
+`Nom,Prénom,Rôle
+Martin,Sophie,Participante
+Dupont,Jean,Intervenant
+Leclerc,Marie,Organisatrice
+Bernard,Paul,Participant
+Petit,Lucie,Modératrice
+Moreau,Thomas,Invité
+Simon,Clara,Intervenante
+Laurent,Mathieu,Participant
+Leroy,Émilie,Organisatrice
+Roux,Antoine,Participant
+David,Camille,Intervenante
+Bertrand,Hugo,Participant`;
+
+  document.getElementById('hasHeader').checked = true;
+  parseCSV();
+}
+
+// ============================================================
+// 5. CALCUL DE LA MISE EN PAGE
+// Retourne le nombre de colonnes et lignes de badges par page A4
+// ============================================================
+function getLayout() {
+  const bw = +document.getElementById('badgeW').value;  // mm
+  const bh = +document.getElementById('badgeH').value;  // mm
+  const ml = +document.getElementById('marginLeft').value;
+  const mt = +document.getElementById('marginTop').value;
+  const gh = +document.getElementById('gapH').value;    // espace horizontal
+  const gv = +document.getElementById('gapV').value;    // espace vertical
+
+  // Nombre de colonnes = partie entière de (largeur_utile / (badge + gap))
+  const cols = Math.max(1, Math.floor((A4_W_MM - 2 * ml + gh) / (bw + gh)));
+  const rows = Math.max(1, Math.floor((A4_H_MM - 2 * mt + gv) / (bh + gv)));
+
+  return { cols, rows, bw, bh, ml, mt, gh, gv, perPage: cols * rows };
+}
+
+// ============================================================
+// 6. RENDU DE LA PRÉVISUALISATION
+// Crée les pages A4 HTML avec les badges positionnés
+// ============================================================
+function renderPreview() {
+  const container = document.getElementById('pagesContainer');
+  const pageInfo  = document.getElementById('pageInfo');
+
+  // Mise à jour du compteur "badges par page"
+  const layout = getLayout();
+  document.getElementById('badgesPerPageInfo').value =
+    `${layout.cols} col × ${layout.rows} lig = ${layout.perPage} badges/page`;
+
+  // Si aucune donnée, afficher l'état vide
+  if (parsedData.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="icon">📋</div>
+        <div>Collez vos données dans le panneau gauche<br>pour voir la prévisualisation des badges.</div>
+        <button class="btn btn-secondary" onclick="loadSampleData()" style="margin-top:10px">Charger un exemple</button>
+      </div>`;
+    pageInfo.textContent = '— page(s)';
+    return;
+  }
+
+  // Calcul du nombre de pages nécessaires
+  const totalPages = Math.ceil(parsedData.length / layout.perPage);
+  pageInfo.textContent = `${parsedData.length} badges — ${totalPages} page${totalPages > 1 ? 's' : ''} A4`;
+
+  container.innerHTML = '';
+
+  // Génération de chaque page
+  for (let p = 0; p < totalPages; p++) {
+    const pageEl = document.createElement('div');
+    pageEl.className = 'a4-page';
+    pageEl.id = `page-${p}`;
+
+    // Slice des données pour cette page
+    const slice = parsedData.slice(p * layout.perPage, (p + 1) * layout.perPage);
+
+    // Placement de chaque badge sur la page
+    slice.forEach((row, idx) => {
+      const col = idx % layout.cols;
+      const lin = Math.floor(idx / layout.cols);
+
+      // Position en mm → px (pour l'affichage écran)
+      const xMm = layout.ml + col * (layout.bw + layout.gh);
+      const yMm = layout.mt + lin * (layout.bh + layout.gv);
+      const xPx = xMm * MM_TO_PX;
+      const yPx = yMm * MM_TO_PX;
+      const wPx = layout.bw * MM_TO_PX;
+      const hPx = layout.bh * MM_TO_PX;
+
+      const badge = document.createElement('div');
+      badge.className = 'badge-item';
+      badge.style.cssText = `left:${xPx}px; top:${yPx}px; width:${wPx}px; height:${hPx}px;`;
+
+      // Image de fond (si importée)
+      if (bgImageDataUrl) {
+        const bg = document.createElement('img');
+        bg.className = 'badge-bg';
+        bg.src = bgImageDataUrl;
+        badge.appendChild(bg);
+      } else {
+        // Fond par défaut dégradé si pas d'image
+        badge.style.background = 'linear-gradient(135deg, #dfe6e9 0%, #b2bec3 100%)';
+      }
+
+      // Couche texte
+      const fieldsDiv = document.createElement('div');
+      fieldsDiv.className = 'badge-fields';
+
+      // ⚙ Ajout des 3 champs texte
+      [1, 2, 3].forEach(n => {
+        const colIdx  = colMap[`field${n}`];
+        const text    = (colIdx >= 0 && colIdx < row.length) ? row[colIdx] : '';
+        if (!text) return;
+
+        const yPct    = +document.getElementById(`y${n}`).value;
+        const font    = document.getElementById(`font${n}`).value;
+        const color   = document.getElementById(`color${n}`).value;
+        const isAuto  = document.getElementById(`autoSize${n}`).checked;
+        let   size    = +document.getElementById(`size${n}`).value;
+
+        // Ajustement automatique de la taille si le texte est trop long
+        if (isAuto) {
+          // Estimation : 0.6 * taille ≈ largeur d'un caractère
+          const maxChars = Math.floor(wPx / (size * 0.6));
+          if (text.length > maxChars) {
+            size = Math.max(6, Math.floor(size * maxChars / text.length));
+          }
+        }
+
+        const fieldEl = document.createElement('div');
+        fieldEl.className = 'badge-field';
+        fieldEl.style.cssText = `
+          top: ${yPct}%;
+          font-family: ${font};
+          color: ${color};
+          font-size: ${size}px;
+          font-weight: ${n === 1 ? 'bold' : 'normal'};
+        `;
+        fieldEl.textContent = text;
+        fieldsDiv.appendChild(fieldEl);
+      });
+
+      badge.appendChild(fieldsDiv);
+      pageEl.appendChild(badge);
+    });
+
+    // Numéro de page
+    const pgNum = document.createElement('div');
+    pgNum.style.cssText = `
+      position:absolute; bottom:8px; right:12px;
+      font-size:9px; color:#aaa; font-family:sans-serif;
+    `;
+    pgNum.textContent = `Page ${p + 1} / ${totalPages}`;
+    pageEl.appendChild(pgNum);
+
+    container.appendChild(pageEl);
+  }
+}
+
+// ============================================================
+// 7. EXPORT PDF
+// Capture chaque page A4 avec html2canvas, insère dans jsPDF
+// ============================================================
+async function exportPDF() {
+  if (parsedData.length === 0) {
+    alert('Aucun badge à exporter. Chargez des données d\'abord.');
+    return;
+  }
+
+  showProgress(true);
+  const layout    = getLayout();
+  const totalPages = Math.ceil(parsedData.length / layout.perPage);
+
+  // jsPDF en mm, format A4 portrait
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+
+  for (let p = 0; p < totalPages; p++) {
+    setProgress(p / totalPages, `Rendu page ${p + 1} / ${totalPages}…`);
+
+    const pageEl = document.getElementById(`page-${p}`);
+    if (!pageEl) continue;
+
+    // Capture HTML → canvas à haute résolution (scale=2 pour impression)
+    const canvas = await html2canvas(pageEl, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+    });
+
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+
+    if (p > 0) pdf.addPage();
+    // Insertion pleine page A4 (0, 0, 210mm, 297mm)
+    pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
+  }
+
+  setProgress(1, 'Finalisation…');
+
+  // Téléchargement automatique
+  pdf.save('badges-impression.pdf');
+
+  setTimeout(() => showProgress(false), 800);
+}
+
+// ============================================================
+// 8. EXPORT JPG (une image par page)
+// ============================================================
+async function exportJPG() {
+  if (parsedData.length === 0) {
+    alert('Aucun badge à exporter. Chargez des données d\'abord.');
+    return;
+  }
+
+  showProgress(true);
+  const layout     = getLayout();
+  const totalPages = Math.ceil(parsedData.length / layout.perPage);
+
+  for (let p = 0; p < totalPages; p++) {
+    setProgress(p / totalPages, `Export page ${p + 1} / ${totalPages}…`);
+
+    const pageEl = document.getElementById(`page-${p}`);
+    if (!pageEl) continue;
+
+    const canvas = await html2canvas(pageEl, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+    });
+
+    // Crée un lien de téléchargement
+    const link = document.createElement('a');
+    link.href     = canvas.toDataURL('image/jpeg', 0.95);
+    link.download = `badges-page-${p + 1}.jpg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // Petite pause entre téléchargements
+    await new Promise(r => setTimeout(r, 400));
+  }
+
+  setProgress(1, 'Terminé !');
+  setTimeout(() => showProgress(false), 800);
+}
+
+// ============================================================
+// 9. GESTION DE LA BARRE DE PROGRESSION
+// ============================================================
+function showProgress(visible) {
+  document.getElementById('progressOverlay').classList.toggle('active', visible);
+  if (visible) {
+    document.getElementById('progressFill').style.width = '0%';
+    document.getElementById('progressLabel').textContent = 'Initialisation…';
+  }
+}
+
+function setProgress(ratio, label) {
+  document.getElementById('progressFill').style.width = `${Math.round(ratio * 100)}%`;
+  document.getElementById('progressLabel').textContent = label;
+}
+
+// ============================================================
+// 10. INITIALISATION
+// Charge les données d'exemple au démarrage pour démo immédiate
+// ============================================================
+window.addEventListener('DOMContentLoaded', () => {
+  loadSampleData();
+});
+
+</script>
+</body>
+</html>
