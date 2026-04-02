@@ -1,0 +1,1466 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VisualKit — Générateur de visuels événements</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+<style>
+  /* ===== RESET & BASE ===== */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #F5F2ED;
+    --surface: #FDFCFA;
+    --border: #E2DDD6;
+    --text: #1A1714;
+    --text-muted: #7A7168;
+    --accent: #C8553D;
+    --accent-light: #F2E8E5;
+    --accent-dark: #A03F2A;
+    --success: #3D8C5A;
+    --warning: #C07A30;
+    --radius: 12px;
+    --shadow: 0 1px 3px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.06);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,.1);
+  }
+
+  html { font-size: 16px; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  /* ===== HEADER ===== */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.5rem;
+    color: var(--accent);
+    letter-spacing: -0.02em;
+  }
+
+  .logo span {
+    color: var(--text);
+    font-style: italic;
+  }
+
+  .header-badge {
+    font-size: .75rem;
+    font-weight: 500;
+    background: var(--accent-light);
+    color: var(--accent);
+    padding: 4px 10px;
+    border-radius: 100px;
+  }
+
+  /* ===== LAYOUT ===== */
+  .app {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+    display: grid;
+    gap: 1.5rem;
+  }
+
+  /* ===== STEP CARDS ===== */
+  .step-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    transition: box-shadow .2s;
+  }
+
+  .step-header {
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    cursor: pointer;
+    user-select: none;
+    background: var(--surface);
+    border-bottom: 1px solid transparent;
+    transition: background .15s, border-color .15s;
+  }
+
+  .step-header:hover { background: #FAF8F5; }
+  .step-card.open .step-header { border-bottom-color: var(--border); }
+
+  .step-num {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: white;
+    font-weight: 600;
+    font-size: .85rem;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: background .2s;
+  }
+
+  .step-card.done .step-num { background: var(--success); }
+
+  .step-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.1rem;
+    letter-spacing: -0.01em;
+    flex: 1;
+  }
+
+  .step-status {
+    font-size: .75rem;
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 100px;
+    color: var(--text-muted);
+    background: var(--bg);
+  }
+
+  .step-card.done .step-status { background: #E8F5EE; color: var(--success); }
+
+  .step-chevron {
+    color: var(--text-muted);
+    transition: transform .2s;
+  }
+  .step-card.open .step-chevron { transform: rotate(180deg); }
+
+  .step-body {
+    display: none;
+    padding: 1.5rem;
+  }
+  .step-card.open .step-body { display: block; }
+
+  /* ===== FORM ELEMENTS ===== */
+  label {
+    display: block;
+    font-size: .8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    margin-bottom: .4rem;
+  }
+
+  input[type=text], input[type=number], input[type=date], select, textarea {
+    width: 100%;
+    padding: .6rem .85rem;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: .9rem;
+    background: var(--surface);
+    color: var(--text);
+    transition: border-color .15s, box-shadow .15s;
+    appearance: none;
+  }
+
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-light);
+  }
+
+  .field { margin-bottom: 1rem; }
+
+  /* ===== BUTTONS ===== */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .65rem 1.25rem;
+    border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: .9rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all .15s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+  }
+  .btn-primary:hover { background: var(--accent-dark); transform: translateY(-1px); }
+
+  .btn-secondary {
+    background: var(--bg);
+    color: var(--text);
+    border: 1.5px solid var(--border);
+  }
+  .btn-secondary:hover { background: var(--border); }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--accent);
+    border: 1.5px solid var(--accent-light);
+  }
+  .btn-ghost:hover { background: var(--accent-light); }
+
+  .btn-success {
+    background: var(--success);
+    color: white;
+  }
+  .btn-success:hover { opacity: .9; }
+
+  .btn-lg {
+    padding: .85rem 2rem;
+    font-size: 1rem;
+  }
+
+  .btn:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+    transform: none !important;
+  }
+
+  /* ===== DROPZONE ===== */
+  .dropzone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 2.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all .2s;
+    background: var(--bg);
+    position: relative;
+  }
+
+  .dropzone:hover, .dropzone.drag-over {
+    border-color: var(--accent);
+    background: var(--accent-light);
+  }
+
+  .dropzone input[type=file] {
+    position: absolute; inset: 0;
+    opacity: 0; cursor: pointer;
+    width: 100%; height: 100%;
+    border: none;
+  }
+
+  .dropzone-icon { font-size: 2rem; margin-bottom: .5rem; }
+  .dropzone-label { font-weight: 500; color: var(--text); }
+  .dropzone-hint { font-size: .8rem; color: var(--text-muted); margin-top: .25rem; }
+
+  /* ===== IMAGE LIST ===== */
+  .image-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+
+  .image-item {
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--surface);
+  }
+
+  .image-thumb {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    display: block;
+  }
+
+  .image-item-info {
+    padding: .6rem;
+  }
+
+  .image-name {
+    font-size: .75rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: .4rem;
+  }
+
+  .image-type-input {
+    padding: .35rem .6rem;
+    font-size: .8rem;
+    border-radius: 6px;
+    border: 1.5px solid var(--border);
+    width: 100%;
+  }
+
+  .image-remove {
+    float: right;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: .85rem;
+    padding: 2px 4px;
+    border-radius: 4px;
+  }
+  .image-remove:hover { color: var(--accent); background: var(--accent-light); }
+
+  /* ===== EVENTS TABLE ===== */
+  .events-table-wrap { overflow-x: auto; margin-top: 1rem; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .875rem;
+  }
+
+  th {
+    background: var(--bg);
+    padding: .6rem .9rem;
+    text-align: left;
+    font-size: .75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--text-muted);
+    border-bottom: 1.5px solid var(--border);
+  }
+
+  td {
+    padding: .55rem .9rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  td input, td select {
+    padding: .35rem .6rem;
+    font-size: .85rem;
+    border-radius: 6px;
+  }
+
+  .btn-icon {
+    background: none; border: none;
+    cursor: pointer; padding: 4px 8px;
+    border-radius: 6px; color: var(--text-muted);
+    font-size: .9rem;
+    transition: all .15s;
+  }
+  .btn-icon:hover { background: var(--accent-light); color: var(--accent); }
+
+  /* ===== SETTINGS GRID ===== */
+  .settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+  }
+
+  .color-row {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+  }
+
+  input[type=color] {
+    width: 36px; height: 36px;
+    border-radius: 6px;
+    border: 1.5px solid var(--border);
+    padding: 2px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  input[type=range] {
+    flex: 1;
+    accent-color: var(--accent);
+  }
+
+  .range-val {
+    font-size: .8rem;
+    color: var(--text-muted);
+    min-width: 3ch;
+    text-align: right;
+  }
+
+  /* ===== TABS ===== */
+  .tabs {
+    display: flex;
+    gap: .5rem;
+    margin-bottom: 1.25rem;
+    border-bottom: 1.5px solid var(--border);
+    padding-bottom: .75rem;
+  }
+
+  .tab {
+    padding: .45rem 1rem;
+    border-radius: 100px;
+    font-size: .85rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1.5px solid transparent;
+    transition: all .15s;
+    background: transparent;
+    color: var(--text-muted);
+  }
+  .tab.active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+  .tab:not(.active):hover { background: var(--bg); border-color: var(--border); }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ===== ALERT ===== */
+  .alert {
+    padding: .8rem 1rem;
+    border-radius: 8px;
+    font-size: .85rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+  }
+  .alert-warning { background: #FEF3E2; color: #92580F; border: 1px solid #F5D89C; }
+  .alert-error { background: #FEE8E5; color: #8B2315; border: 1px solid #F5B5AF; }
+  .alert-success { background: #E8F5EE; color: #1E5E38; border: 1px solid #A8D9B8; }
+
+  /* ===== GENERATE SECTION ===== */
+  .generate-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    box-shadow: var(--shadow);
+  }
+
+  .generate-bar-info { flex: 1; }
+  .generate-bar-info h3 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.15rem;
+    margin-bottom: .2rem;
+  }
+  .generate-bar-info p { font-size: .85rem; color: var(--text-muted); }
+
+  /* ===== PREVIEW GRID ===== */
+  #preview-section { display: none; }
+
+  .preview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1.25rem;
+    margin-top: 1.25rem;
+  }
+
+  .preview-item {
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    transition: box-shadow .2s, transform .2s;
+  }
+  .preview-item:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+
+  .preview-canvas-wrap {
+    position: relative;
+    background: #111;
+  }
+
+  .preview-canvas-wrap canvas {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1;
+  }
+
+  .preview-item-footer {
+    padding: .75rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+  }
+
+  .preview-item-name {
+    font-size: .8rem;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+  }
+
+  .preview-error {
+    background: #FEE8E5;
+    color: #8B2315;
+    padding: 1.5rem;
+    text-align: center;
+    font-size: .8rem;
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: .5rem;
+  }
+
+  /* ===== SEPARATOR ===== */
+  .sep {
+    display: flex; align-items: center; gap: 1rem;
+    color: var(--text-muted); font-size: .8rem;
+    margin: 1rem 0;
+  }
+  .sep::before, .sep::after { content:''; flex:1; border-top:1px solid var(--border); }
+
+  /* ===== MISC ===== */
+  .row { display: flex; gap: 1rem; flex-wrap: wrap; }
+  .row .field { flex: 1; min-width: 140px; }
+
+  .hint { font-size: .78rem; color: var(--text-muted); margin-top: .3rem; }
+
+  .empty-state {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-muted);
+    font-size: .9rem;
+  }
+  .empty-state .icon { font-size: 2rem; margin-bottom: .5rem; }
+
+  .badge {
+    display: inline-block;
+    background: var(--accent-light);
+    color: var(--accent);
+    font-size: .7rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 100px;
+  }
+
+  .csv-example {
+    background: #1A1714;
+    color: #C8E6C9;
+    font-family: 'Courier New', monospace;
+    font-size: .8rem;
+    padding: 1rem;
+    border-radius: 8px;
+    white-space: pre;
+    overflow-x: auto;
+    margin-top: .5rem;
+  }
+
+  /* ===== PROGRESS ===== */
+  .progress-bar-wrap {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: .75rem;
+    display: none;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width .15s;
+    width: 0%;
+  }
+
+  /* ===== FOOTER ===== */
+  footer {
+    text-align: center;
+    padding: 2rem;
+    font-size: .78rem;
+    color: var(--text-muted);
+    border-top: 1px solid var(--border);
+    margin-top: 2rem;
+  }
+
+  @media (max-width: 640px) {
+    .app { padding: 1rem; }
+    .settings-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Visual<span>Kit</span></div>
+  <div class="header-badge">100% Front-end · Sans serveur</div>
+</header>
+
+<main class="app">
+
+  <!-- ======== STEP 1 : IMAGES ======== -->
+  <div class="step-card open" id="step1">
+    <div class="step-header" onclick="toggleStep('step1')">
+      <div class="step-num">1</div>
+      <div class="step-title">Images templates</div>
+      <div class="step-status" id="step1-status">En attente</div>
+      <svg class="step-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="step-body">
+      <p style="font-size:.875rem;color:var(--text-muted);margin-bottom:1.25rem">
+        Importez vos images de fond, puis assignez un <strong>type</strong> à chacune. Ce type sera utilisé pour associer un visuel à chaque événement.
+      </p>
+
+      <div class="dropzone" id="img-dropzone">
+        <input type="file" accept="image/*" multiple id="img-input" onchange="handleImages(this.files)" ondragover="dragOver(event,'img-dropzone')" ondragleave="dragLeave('img-dropzone')" ondrop="dropFiles(event,'img-input')">
+        <div class="dropzone-icon">🖼️</div>
+        <div class="dropzone-label">Glisser des images ici ou cliquer pour parcourir</div>
+        <div class="dropzone-hint">JPG, PNG, WEBP — plusieurs fichiers acceptés</div>
+      </div>
+
+      <div class="sep">ou utiliser les exemples fournis</div>
+
+      <button class="btn btn-secondary" onclick="loadDemoImages()">📦 Charger les 3 images de démo</button>
+
+      <div id="image-list" class="image-grid"></div>
+    </div>
+  </div>
+
+  <!-- ======== STEP 2 : ÉVÉNEMENTS ======== -->
+  <div class="step-card" id="step2">
+    <div class="step-header" onclick="toggleStep('step2')">
+      <div class="step-num">2</div>
+      <div class="step-title">Événements</div>
+      <div class="step-status" id="step2-status">En attente</div>
+      <svg class="step-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="step-body">
+
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('tab-csv', this)">📁 Import CSV/Excel</button>
+        <button class="tab" onclick="switchTab('tab-manual', this)">✏️ Saisie manuelle</button>
+      </div>
+
+      <!-- CSV Tab -->
+      <div class="tab-panel active" id="tab-csv">
+        <div class="dropzone" id="csv-dropzone">
+          <input type="file" accept=".csv,.xlsx,.xls" id="csv-input" onchange="handleCSV(this.files[0])">
+          <div class="dropzone-icon">📊</div>
+          <div class="dropzone-label">Glisser un CSV ou Excel ici</div>
+          <div class="dropzone-hint">.csv, .xlsx — colonnes : Nom, Date, Type</div>
+        </div>
+
+        <div class="sep">format attendu</div>
+        <div class="csv-example">Nom,Date,Type
+Atelier aquarelle,2025-03-15,atelier
+Réunion de quartier,2025-03-22,réunion
+Conférence IA & société,2025-04-05,conférence</div>
+
+        <div style="margin-top:1rem">
+          <button class="btn btn-ghost" onclick="loadDemoEvents()">🧪 Charger les événements de démo</button>
+          <button class="btn btn-secondary" style="margin-left:.5rem" onclick="downloadSampleCSV()">⬇️ Télécharger CSV exemple</button>
+        </div>
+      </div>
+
+      <!-- Manuel Tab -->
+      <div class="tab-panel" id="tab-manual">
+        <div class="row">
+          <div class="field">
+            <label>Nom de l'événement</label>
+            <input type="text" id="ev-name" placeholder="Ex : Atelier peinture">
+          </div>
+          <div class="field">
+            <label>Date</label>
+            <input type="date" id="ev-date">
+          </div>
+          <div class="field">
+            <label>Type</label>
+            <input type="text" id="ev-type" placeholder="Ex : atelier">
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="addManualEvent()">+ Ajouter l'événement</button>
+      </div>
+
+      <!-- Table -->
+      <div class="events-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Nom de l'événement</th>
+              <th>Date</th>
+              <th>Type</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="events-tbody">
+            <tr><td colspan="5"><div class="empty-state"><div class="icon">📋</div>Aucun événement — importez un CSV ou saisissez manuellement.</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======== STEP 3 : MISE EN FORME ======== -->
+  <div class="step-card" id="step3">
+    <div class="step-header" onclick="toggleStep('step3')">
+      <div class="step-num">3</div>
+      <div class="step-title">Mise en forme</div>
+      <div class="step-status" id="step3-status">Prêt</div>
+      <svg class="step-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="step-body">
+      <div class="settings-grid">
+
+        <div class="field">
+          <label>Format (px)</label>
+          <div class="row" style="margin:0;gap:.5rem">
+            <input type="number" id="out-w" value="1080" min="200" max="4000" style="flex:1">
+            <span style="padding:.6rem 0;color:var(--text-muted)">×</span>
+            <input type="number" id="out-h" value="1080" min="200" max="4000" style="flex:1">
+          </div>
+          <p class="hint">Largeur × Hauteur</p>
+        </div>
+
+        <div class="field">
+          <label>Police</label>
+          <select id="font-family">
+            <option value="Georgia, serif">Georgia (Classique)</option>
+            <option value="'DM Serif Display', Georgia, serif">DM Serif Display</option>
+            <option value="'Arial Black', sans-serif">Arial Black (Gras)</option>
+            <option value="'Trebuchet MS', sans-serif">Trebuchet MS (Moderne)</option>
+            <option value="'Courier New', monospace">Courier New (Monospace)</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Couleur du texte</label>
+          <div class="color-row">
+            <input type="color" id="text-color" value="#FFFFFF">
+            <input type="text" id="text-color-hex" value="#FFFFFF" style="flex:1" oninput="syncColorFromText('text-color','text-color-hex')">
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Taille du nom — <span id="font-size-val">72</span>px</label>
+          <input type="range" id="font-size" min="24" max="120" value="72" oninput="document.getElementById('font-size-val').textContent=this.value">
+        </div>
+
+        <div class="field">
+          <label>Taille de la date — <span id="date-size-val">42</span>px</label>
+          <input type="range" id="date-size" min="16" max="80" value="42" oninput="document.getElementById('date-size-val').textContent=this.value">
+        </div>
+
+        <div class="field">
+          <label>Fond semi-transparent</label>
+          <select id="overlay-style">
+            <option value="bottom">Bandeau bas</option>
+            <option value="center">Bandeau centre</option>
+            <option value="none">Aucun</option>
+            <option value="full">Plein écran sombre</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Opacité du fond — <span id="overlay-opacity-val">60</span>%</label>
+          <input type="range" id="overlay-opacity" min="0" max="100" value="60" oninput="document.getElementById('overlay-opacity-val').textContent=this.value">
+        </div>
+
+        <div class="field">
+          <label>Position du texte</label>
+          <select id="text-position">
+            <option value="bottom">Bas</option>
+            <option value="center">Centre</option>
+            <option value="top">Haut</option>
+          </select>
+        </div>
+
+      </div>
+
+      <div style="margin-top:1rem">
+        <label style="display:inline-flex;align-items:center;gap:.5rem;cursor:pointer;text-transform:none;letter-spacing:0;font-size:.875rem;font-weight:400">
+          <input type="checkbox" id="show-date" checked style="width:16px;height:16px;accent-color:var(--accent)">
+          Afficher la date sur les visuels
+        </label>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ======== GENERATE BAR ======== -->
+  <div class="generate-bar">
+    <div class="generate-bar-info">
+      <h3>Générer les visuels</h3>
+      <p id="generate-info">Complétez les étapes 1 et 2 pour générer vos visuels.</p>
+    </div>
+    <div style="display:flex;gap:.75rem;flex-wrap:wrap">
+      <button class="btn btn-primary btn-lg" id="btn-generate" onclick="generateAll()">
+        ✨ Générer
+      </button>
+      <button class="btn btn-success btn-lg" id="btn-zip" onclick="downloadAllZip()" style="display:none">
+        📦 Tout télécharger (.zip)
+      </button>
+    </div>
+  </div>
+
+  <div class="progress-bar-wrap" id="progress-wrap">
+    <div class="progress-bar-fill" id="progress-fill"></div>
+  </div>
+
+  <!-- ======== PREVIEW ======== -->
+  <div id="preview-section">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem">
+      <h2 style="font-family:'DM Serif Display',serif;font-size:1.4rem">
+        Prévisualisation <span id="preview-count" class="badge">0</span>
+      </h2>
+      <div id="error-summary"></div>
+    </div>
+    <div class="preview-grid" id="preview-grid"></div>
+  </div>
+
+</main>
+
+<footer>VisualKit — Générateur de visuels 100% front-end · Aucune donnée envoyée sur un serveur</footer>
+
+<!-- ============================== SCRIPT ============================== -->
+<script>
+/* ======================================================
+   STATE
+====================================================== */
+let images = [];    // { id, name, type, src (data-url), img (HTMLImageElement) }
+let events = [];    // { name, date, type }
+let generatedCanvases = []; // { name, canvas }
+
+/* ======================================================
+   STEP ACCORDION
+====================================================== */
+function toggleStep(id) {
+  const el = document.getElementById(id);
+  el.classList.toggle('open');
+}
+
+function openStep(id) {
+  document.getElementById(id).classList.add('open');
+}
+
+/* ======================================================
+   TABS
+====================================================== */
+function switchTab(panelId, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  document.getElementById(panelId).classList.add('active');
+  btn.classList.add('active');
+}
+
+/* ======================================================
+   DRAG & DROP helpers
+====================================================== */
+function dragOver(e, id) {
+  e.preventDefault();
+  document.getElementById(id).classList.add('drag-over');
+}
+function dragLeave(id) {
+  document.getElementById(id).classList.remove('drag-over');
+}
+function dropFiles(e, inputId) {
+  e.preventDefault();
+  const inp = document.getElementById(inputId);
+  const dt = e.dataTransfer;
+  dragLeave(inp.closest('.dropzone').id);
+  if (inputId === 'img-input') handleImages(dt.files);
+  else if (inputId === 'csv-input') handleCSV(dt.files[0]);
+}
+
+/* ======================================================
+   COLOR SYNC
+====================================================== */
+document.getElementById('text-color').addEventListener('input', function() {
+  document.getElementById('text-color-hex').value = this.value.toUpperCase();
+});
+function syncColorFromText(colorId, hexId) {
+  const val = document.getElementById(hexId).value;
+  if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+    document.getElementById(colorId).value = val;
+  }
+}
+
+/* ======================================================
+   IMAGES
+====================================================== */
+function handleImages(files) {
+  Array.from(files).forEach(file => {
+    if (!file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.src = e.target.result;
+      img.onload = () => {
+        const guessedType = guessTypeFromName(file.name);
+        images.push({ id: Date.now() + Math.random(), name: file.name, type: guessedType, src: e.target.result, img });
+        renderImageList();
+        updateStepStatus();
+      };
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function guessTypeFromName(name) {
+  const lower = name.toLowerCase();
+  if (lower.includes('atelier')) return 'atelier';
+  if (lower.includes('reunion') || lower.includes('réunion')) return 'réunion';
+  if (lower.includes('conf')) return 'conférence';
+  return '';
+}
+
+function removeImage(id) {
+  images = images.filter(i => i.id !== id);
+  renderImageList();
+  updateStepStatus();
+}
+
+function renderImageList() {
+  const container = document.getElementById('image-list');
+  if (!images.length) { container.innerHTML = ''; return; }
+  container.innerHTML = images.map(img => `
+    <div class="image-item">
+      <img class="image-thumb" src="${img.src}" alt="${img.name}">
+      <div class="image-item-info">
+        <div class="image-name">
+          <button class="image-remove" onclick="removeImage(${img.id})" title="Supprimer">✕</button>
+          ${img.name}
+        </div>
+        <input class="image-type-input" type="text" placeholder="Type (ex: atelier)"
+          value="${img.type}"
+          onchange="updateImageType(${img.id}, this.value)"
+          oninput="updateImageType(${img.id}, this.value)">
+      </div>
+    </div>
+  `).join('');
+}
+
+function updateImageType(id, value) {
+  const img = images.find(i => i.id === id);
+  if (img) img.type = value.trim().toLowerCase();
+}
+
+/* ======================================================
+   DEMO IMAGES (generated via Canvas)
+====================================================== */
+function loadDemoImages() {
+  const demos = [
+    { name: 'demo-atelier.png', type: 'atelier', bg: ['#6B4226', '#A0522D'], emoji: '🎨', label: 'ATELIER' },
+    { name: 'demo-reunion.png', type: 'réunion', bg: ['#1A3A5C', '#2E6DA4'], emoji: '🤝', label: 'RÉUNION' },
+    { name: 'demo-conférence.png', type: 'conférence', bg: ['#1E4D2B', '#2E7D32'], emoji: '🎤', label: 'CONFÉRENCE' },
+  ];
+
+  demos.forEach(d => {
+    const c = document.createElement('canvas');
+    c.width = 1080; c.height = 1080;
+    const ctx = c.getContext('2d');
+
+    // gradient bg
+    const grad = ctx.createLinearGradient(0, 0, 1080, 1080);
+    grad.addColorStop(0, d.bg[0]);
+    grad.addColorStop(1, d.bg[1]);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 1080, 1080);
+
+    // pattern overlay
+    ctx.fillStyle = 'rgba(255,255,255,.03)';
+    for (let x = 0; x < 1080; x += 40) {
+      for (let y = 0; y < 1080; y += 40) {
+        ctx.fillRect(x, y, 20, 20);
+      }
+    }
+
+    // emoji
+    ctx.font = '220px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(d.emoji, 540, 460);
+
+    // label
+    ctx.font = 'bold 80px Arial';
+    ctx.fillStyle = 'rgba(255,255,255,.6)';
+    ctx.letterSpacing = '12px';
+    ctx.fillText(d.label, 540, 700);
+
+    const src = c.toDataURL('image/png');
+    const img = new Image();
+    img.src = src;
+    img.onload = () => {
+      images.push({ id: Date.now() + Math.random(), name: d.name, type: d.type, src, img });
+      renderImageList();
+      updateStepStatus();
+    };
+  });
+}
+
+/* ======================================================
+   CSV PARSING
+====================================================== */
+function handleCSV(file) {
+  if (!file) return;
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext === 'csv') {
+    const reader = new FileReader();
+    reader.onload = e => parseCSVText(e.target.result);
+    reader.readAsText(file, 'UTF-8');
+  } else {
+    showAlert('tab-csv', 'warning', 'Seuls les fichiers CSV sont supportés dans cette version. Exportez votre Excel en CSV.');
+  }
+}
+
+function parseCSVText(text) {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) return;
+  // Auto-detect delimiter
+  const delim = lines[0].includes(';') ? ';' : ',';
+  const headers = lines[0].split(delim).map(h => h.trim().toLowerCase().replace(/"/g, ''));
+
+  const nameIdx = headers.findIndex(h => ['nom', 'name', 'titre', 'title', 'événement', 'evenement'].includes(h));
+  const dateIdx = headers.findIndex(h => ['date', 'jour', 'day'].includes(h));
+  const typeIdx = headers.findIndex(h => ['type', 'catégorie', 'categorie', 'category'].includes(h));
+
+  if (nameIdx === -1 || dateIdx === -1 || typeIdx === -1) {
+    showAlert('tab-csv', 'error', `Colonnes non reconnues. En-têtes trouvés : ${headers.join(', ')}. Attendus : Nom, Date, Type`);
+    return;
+  }
+
+  let added = 0;
+  for (let i = 1; i < lines.length; i++) {
+    const cols = splitCSVLine(lines[i], delim);
+    if (cols.length < 3) continue;
+    const name = cols[nameIdx]?.replace(/"/g, '').trim();
+    const date = cols[dateIdx]?.replace(/"/g, '').trim();
+    const type = cols[typeIdx]?.replace(/"/g, '').trim().toLowerCase();
+    if (name && date && type) {
+      events.push({ name, date: normalizeDate(date), type });
+      added++;
+    }
+  }
+
+  renderEventsTable();
+  updateStepStatus();
+  if (added > 0) showAlert('tab-csv', 'success', `${added} événement(s) importé(s) avec succès.`);
+}
+
+function splitCSVLine(line, delim) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for (const char of line) {
+    if (char === '"') { inQuotes = !inQuotes; }
+    else if (char === delim && !inQuotes) { result.push(current); current = ''; }
+    else { current += char; }
+  }
+  result.push(current);
+  return result;
+}
+
+function normalizeDate(str) {
+  // Try to parse various formats
+  const cleaned = str.trim();
+  // DD/MM/YYYY
+  const fr = cleaned.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (fr) return `${fr[3]}-${fr[2].padStart(2,'0')}-${fr[1].padStart(2,'0')}`;
+  // DD-MM-YYYY
+  const fr2 = cleaned.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  if (fr2) return `${fr2[3]}-${fr2[2].padStart(2,'0')}-${fr2[1].padStart(2,'0')}`;
+  return cleaned; // assume YYYY-MM-DD
+}
+
+function showAlert(containerId, type, message) {
+  const container = document.getElementById(containerId);
+  const icons = { warning: '⚠️', error: '❌', success: '✅' };
+  const div = document.createElement('div');
+  div.className = `alert alert-${type}`;
+  div.innerHTML = `<span>${icons[type]}</span> ${message}`;
+  container.appendChild(div);
+  setTimeout(() => div.remove(), 5000);
+}
+
+/* ======================================================
+   EVENTS TABLE
+====================================================== */
+function addManualEvent() {
+  const name = document.getElementById('ev-name').value.trim();
+  const date = document.getElementById('ev-date').value;
+  const type = document.getElementById('ev-type').value.trim().toLowerCase();
+  if (!name || !date || !type) { alert('Veuillez remplir tous les champs.'); return; }
+  events.push({ name, date, type });
+  document.getElementById('ev-name').value = '';
+  document.getElementById('ev-date').value = '';
+  document.getElementById('ev-type').value = '';
+  renderEventsTable();
+  updateStepStatus();
+}
+
+function removeEvent(idx) {
+  events.splice(idx, 1);
+  renderEventsTable();
+  updateStepStatus();
+}
+
+function formatDateFR(dateStr) {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  } catch { return dateStr; }
+}
+
+function renderEventsTable() {
+  const tbody = document.getElementById('events-tbody');
+  if (!events.length) {
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="icon">📋</div>Aucun événement — importez un CSV ou saisissez manuellement.</div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = events.map((ev, i) => `
+    <tr>
+      <td style="color:var(--text-muted);font-size:.8rem">${i+1}</td>
+      <td><input type="text" value="${escHtml(ev.name)}" onchange="events[${i}].name=this.value"></td>
+      <td><input type="date" value="${ev.date}" onchange="events[${i}].date=this.value" style="width:150px"></td>
+      <td><input type="text" value="${escHtml(ev.type)}" onchange="events[${i}].type=this.value.toLowerCase().trim()" style="width:120px"></td>
+      <td><button class="btn-icon" onclick="removeEvent(${i})" title="Supprimer">🗑</button></td>
+    </tr>
+  `).join('');
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ======================================================
+   DEMO EVENTS
+====================================================== */
+function loadDemoEvents() {
+  events = [
+    { name: 'Atelier aquarelle pour débutants', date: '2025-03-15', type: 'atelier' },
+    { name: 'Réunion de quartier — printemps', date: '2025-03-22', type: 'réunion' },
+    { name: 'Conférence IA & société civile', date: '2025-04-05', type: 'conférence' },
+    { name: 'Atelier broderie traditionnelle', date: '2025-04-12', type: 'atelier' },
+    { name: 'Conférence sur le droit au logement', date: '2025-04-20', type: 'conférence' },
+  ];
+  renderEventsTable();
+  updateStepStatus();
+  openStep('step2');
+}
+
+/* ======================================================
+   SAMPLE CSV DOWNLOAD
+====================================================== */
+function downloadSampleCSV() {
+  const csv = `Nom,Date,Type\nAtelier aquarelle,2025-03-15,atelier\nRéunion de quartier,2025-03-22,réunion\nConférence IA & société,2025-04-05,conférence`;
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'evenements-exemple.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ======================================================
+   STATUS UPDATES
+====================================================== */
+function updateStepStatus() {
+  // Step 1
+  const validImages = images.filter(i => i.type);
+  const s1 = document.getElementById('step1-status');
+  if (validImages.length > 0) {
+    s1.textContent = `${validImages.length} image(s) avec type`;
+    document.getElementById('step1').classList.add('done');
+  } else {
+    s1.textContent = 'En attente';
+    document.getElementById('step1').classList.remove('done');
+  }
+
+  // Step 2
+  const s2 = document.getElementById('step2-status');
+  if (events.length > 0) {
+    s2.textContent = `${events.length} événement(s)`;
+    document.getElementById('step2').classList.add('done');
+  } else {
+    s2.textContent = 'En attente';
+    document.getElementById('step2').classList.remove('done');
+  }
+
+  // Generate info
+  const info = document.getElementById('generate-info');
+  const btnGen = document.getElementById('btn-generate');
+  if (validImages.length && events.length) {
+    info.textContent = `${events.length} visuel(s) à générer depuis ${validImages.length} template(s).`;
+    btnGen.disabled = false;
+  } else {
+    const missing = [];
+    if (!validImages.length) missing.push('des images avec un type');
+    if (!events.length) missing.push('des événements');
+    info.textContent = `Ajoutez ${missing.join(' et ')} pour générer.`;
+    btnGen.disabled = true;
+  }
+}
+
+/* ======================================================
+   CANVAS GENERATION
+====================================================== */
+function getSettings() {
+  return {
+    w: parseInt(document.getElementById('out-w').value) || 1080,
+    h: parseInt(document.getElementById('out-h').value) || 1080,
+    font: document.getElementById('font-family').value,
+    textColor: document.getElementById('text-color').value,
+    fontSize: parseInt(document.getElementById('font-size').value),
+    dateSize: parseInt(document.getElementById('date-size').value),
+    overlayStyle: document.getElementById('overlay-style').value,
+    overlayOpacity: parseInt(document.getElementById('overlay-opacity').value) / 100,
+    textPosition: document.getElementById('text-position').value,
+    showDate: document.getElementById('show-date').checked,
+  };
+}
+
+function drawVisual(canvas, imageObj, ev, settings) {
+  const { w, h, font, textColor, fontSize, dateSize, overlayStyle, overlayOpacity, textPosition, showDate } = settings;
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+
+  // Draw background image
+  ctx.drawImage(imageObj.img, 0, 0, w, h);
+
+  // Text position anchor
+  let textY;
+  let overlayH = Math.round(h * 0.28);
+  let overlayY;
+  let textPad = Math.round(h * 0.04);
+
+  if (textPosition === 'bottom') {
+    overlayY = h - overlayH;
+    textY = overlayY + textPad;
+  } else if (textPosition === 'top') {
+    overlayY = 0;
+    textY = textPad;
+  } else {
+    overlayY = Math.round(h / 2 - overlayH / 2);
+    textY = overlayY + textPad;
+  }
+
+  // Overlay
+  if (overlayStyle !== 'none') {
+    if (overlayStyle === 'full') {
+      ctx.fillStyle = `rgba(0,0,0,${overlayOpacity})`;
+      ctx.fillRect(0, 0, w, h);
+      // Re-center text in middle
+      if (textPosition === 'center') textY = Math.round(h/2 - fontSize/2 - (showDate ? dateSize : 0)/2 - 20);
+    } else {
+      // Gradient band
+      const grad = ctx.createLinearGradient(0, overlayY, 0, overlayY + overlayH);
+      const rgb = '0,0,0';
+      if (textPosition === 'bottom') {
+        grad.addColorStop(0, `rgba(${rgb},0)`);
+        grad.addColorStop(0.4, `rgba(${rgb},${overlayOpacity})`);
+        grad.addColorStop(1, `rgba(${rgb},${overlayOpacity})`);
+      } else if (textPosition === 'top') {
+        grad.addColorStop(0, `rgba(${rgb},${overlayOpacity})`);
+        grad.addColorStop(0.6, `rgba(${rgb},${overlayOpacity})`);
+        grad.addColorStop(1, `rgba(${rgb},0)`);
+      } else {
+        grad.addColorStop(0, `rgba(${rgb},0)`);
+        grad.addColorStop(0.2, `rgba(${rgb},${overlayOpacity})`);
+        grad.addColorStop(0.8, `rgba(${rgb},${overlayOpacity})`);
+        grad.addColorStop(1, `rgba(${rgb},0)`);
+      }
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, overlayY, w, overlayH);
+    }
+  }
+
+  // Text
+  ctx.fillStyle = textColor;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+
+  // Name (with wrapping)
+  ctx.font = `bold ${fontSize}px ${font}`;
+  const maxWidth = w * 0.88;
+  const lines = wrapText(ctx, ev.name, maxWidth);
+  lines.forEach((line, i) => {
+    ctx.fillText(line, w / 2, textY + i * (fontSize * 1.2));
+  });
+
+  // Date
+  if (showDate && ev.date) {
+    ctx.font = `${dateSize}px ${font}`;
+    ctx.globalAlpha = 0.9;
+    const dateY = textY + lines.length * (fontSize * 1.2) + Math.round(h * 0.015);
+    ctx.fillText(formatDateFR(ev.date), w / 2, dateY);
+    ctx.globalAlpha = 1;
+  }
+}
+
+function wrapText(ctx, text, maxWidth) {
+  const words = text.split(' ');
+  const lines = [];
+  let line = '';
+  for (const word of words) {
+    const test = line ? line + ' ' + word : word;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+/* ======================================================
+   GENERATE ALL
+====================================================== */
+async function generateAll() {
+  const settings = getSettings();
+  generatedCanvases = [];
+
+  const previewSection = document.getElementById('preview-section');
+  const previewGrid = document.getElementById('preview-grid');
+  const progressWrap = document.getElementById('progress-wrap');
+  const progressFill = document.getElementById('progress-fill');
+
+  previewSection.style.display = 'block';
+  previewGrid.innerHTML = '';
+  progressWrap.style.display = 'block';
+  progressFill.style.width = '0%';
+
+  // Build type -> image map (last defined wins)
+  const typeMap = {};
+  images.forEach(img => { if (img.type) typeMap[img.type.toLowerCase()] = img; });
+
+  const errors = [];
+  const total = events.length;
+
+  for (let i = 0; i < events.length; i++) {
+    const ev = events[i];
+    const imgObj = typeMap[ev.type.toLowerCase()];
+
+    const item = document.createElement('div');
+    item.className = 'preview-item';
+
+    if (!imgObj) {
+      errors.push({ ev, reason: `Aucune image associée au type "${ev.type}"` });
+      item.innerHTML = `
+        <div class="preview-error">
+          <div style="font-size:1.5rem">⚠️</div>
+          <strong>${escHtml(ev.name)}</strong>
+          <div>Type inconnu : <em>${escHtml(ev.type)}</em></div>
+          <div style="font-size:.7rem;opacity:.7">Assignez une image à ce type (étape 1)</div>
+        </div>
+        <div class="preview-item-footer">
+          <span class="preview-item-name" style="color:var(--accent)">${escHtml(ev.name)}</span>
+        </div>`;
+    } else {
+      const canvas = document.createElement('canvas');
+      drawVisual(canvas, imgObj, ev, settings);
+      generatedCanvases.push({ name: sanitizeFilename(ev.name), canvas });
+
+      const wrap = document.createElement('div');
+      wrap.className = 'preview-canvas-wrap';
+      wrap.appendChild(canvas);
+
+      const footer = document.createElement('div');
+      footer.className = 'preview-item-footer';
+      footer.innerHTML = `
+        <span class="preview-item-name">${escHtml(ev.name)}</span>
+        <button class="btn btn-ghost" style="padding:.35rem .75rem;font-size:.75rem" onclick="downloadSingle(${generatedCanvases.length - 1})">⬇️</button>`;
+
+      item.appendChild(wrap);
+      item.appendChild(footer);
+    }
+
+    previewGrid.appendChild(item);
+    progressFill.style.width = `${Math.round(((i+1)/total)*100)}%`;
+    await sleep(20); // allow repaint
+  }
+
+  document.getElementById('preview-count').textContent = `${generatedCanvases.length} générés`;
+
+  // Error summary
+  const errDiv = document.getElementById('error-summary');
+  if (errors.length) {
+    errDiv.innerHTML = `<div class="alert alert-warning">⚠️ ${errors.length} événement(s) ignoré(s) — types sans image correspondante : ${[...new Set(errors.map(e=>e.ev.type))].join(', ')}</div>`;
+  } else {
+    errDiv.innerHTML = '';
+  }
+
+  // Show ZIP button
+  if (generatedCanvases.length > 0) {
+    document.getElementById('btn-zip').style.display = 'flex';
+  }
+
+  setTimeout(() => { progressWrap.style.display = 'none'; }, 500);
+
+  // Scroll to preview
+  previewSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+/* ======================================================
+   DOWNLOAD
+====================================================== */
+function downloadSingle(idx) {
+  const { name, canvas } = generatedCanvases[idx];
+  canvas.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `${name}.png`; a.click();
+    URL.revokeObjectURL(url);
+  }, 'image/png');
+}
+
+async function downloadAllZip() {
+  if (!generatedCanvases.length) return;
+  const zip = new JSZip();
+  const btn = document.getElementById('btn-zip');
+  btn.disabled = true;
+  btn.textContent = '⏳ Création du ZIP...';
+
+  for (const { name, canvas } of generatedCanvases) {
+    const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+    zip.file(`${name}.png`, blob);
+  }
+
+  const content = await zip.generateAsync({ type: 'blob' });
+  const url = URL.createObjectURL(content);
+  const a = document.createElement('a'); a.href = url; a.download = 'visuels-evenements.zip'; a.click();
+  URL.revokeObjectURL(url);
+
+  btn.disabled = false;
+  btn.innerHTML = '📦 Tout télécharger (.zip)';
+}
+
+function sanitizeFilename(name) {
+  return name.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+}
+
+/* ======================================================
+   INIT
+====================================================== */
+updateStepStatus();
+</script>
+</body>
+</html>

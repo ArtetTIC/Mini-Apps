@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>TriBin – Le jeu du tri</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: #1a1a2e;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100dvh;
+    overflow: hidden;
+    font-family: 'Segoe UI', sans-serif;
+    touch-action: none;
+  }
+
+  #gameWrapper {
+    position: relative;
+    width: min(100vw, calc(100dvh * 9/16));
+    height: min(100dvh, calc(100vw * 16/9));
+    overflow: hidden;
+    background: #0d0d1a;
+  }
+
+  /* SKY */
+  #sky {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 35%;
+    background: linear-gradient(180deg, #0a0a1a 0%, #1a2a4a 100%);
+  }
+
+  /* BUILDING */
+  #building {
+    position: absolute;
+    top: 0; left: 10%;
+    width: 80%;
+    height: 72%;
+    background: #1e1e2e;
+    border-radius: 4px 4px 0 0;
+    display: grid;
+    gap: 0;
+    overflow: hidden;
+  }
+
+  .floor {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    border-bottom: 2px solid #2a2a3e;
+    padding: 4px 8px;
+  }
+
+  .window {
+    position: relative;
+    background: #0d0d1a;
+    border: 2px solid #3a3a5a;
+    border-radius: 3px 3px 0 0;
+    overflow: hidden;
+    transition: background 0.3s;
+  }
+
+  .window.lit { background: #fff8c0; }
+  .window.throwing { background: #ffe066; box-shadow: 0 0 8px #ffe066; }
+
+  /* GROUND */
+  #ground {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 14%;
+    background: linear-gradient(180deg, #2a2a3a, #1a1a2a);
+    border-top: 3px solid #3a3a5a;
+  }
+
+  /* PARTICLES / street details */
+  #ground::before {
+    content: '';
+    position: absolute;
+    top: 6px; left: 0; right: 0; height: 2px;
+    background: repeating-linear-gradient(90deg, #3a3a5a 0 20px, transparent 20px 40px);
+    opacity: 0.4;
+  }
+
+  /* BIN */
+  #bin {
+    position: absolute;
+    bottom: calc(14% + 4px);
+    width: 12%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: left 0.05s linear;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.6));
+    z-index: 10;
+    cursor: grab;
+  }
+
+  #binLid {
+    width: 110%;
+    height: 14%;
+    border-radius: 4px 4px 0 0;
+    background: #888;
+    position: relative;
+    z-index: 2;
+    transition: background 0.3s, transform 0.2s;
+  }
+
+  #binBody {
+    width: 100%;
+    flex: 1;
+    border-radius: 0 0 6px 6px;
+    background: #888;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6em;
+    transition: background 0.3s;
+    position: relative;
+    overflow: hidden;
+    min-height: 48px;
+  }
+
+  #binBody::after {
+    content: '';
+    position: absolute;
+    left: 15%; top: 10%; bottom: 10%; width: 8%;
+    background: rgba(255,255,255,0.15);
+    border-radius: 4px;
+  }
+
+  #binLabel {
+    font-size: 0.9em;
+    pointer-events: none;
+  }
+
+  /* bin.catch animation */
+  #bin.catch #binLid { transform: rotate(-30deg) translateX(-5%); }
+  #bin.miss { animation: shake 0.3s; }
+
+  @keyframes shake {
+    0%,100% { transform: translateX(-50%); }
+    25% { transform: translateX(calc(-50% - 4px)); }
+    75% { transform: translateX(calc(-50% + 4px)); }
+  }
+
+  /* WASTE items */
+  .waste {
+    position: absolute;
+    font-size: 2em;
+    transform: translateX(-50%);
+    z-index: 5;
+    pointer-events: none;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+    transition: none;
+  }
+
+  /* HUD */
+  #hud {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 10px;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(4px);
+    z-index: 20;
+    font-size: 0.8em;
+  }
+
+  #scoreDisplay {
+    color: #ffe066;
+    font-weight: 700;
+    font-size: 1.3em;
+    letter-spacing: 1px;
+  }
+
+  #timerDisplay {
+    color: #aaa;
+    font-size: 1em;
+  }
+
+  #levelDisplay {
+    color: #88aaff;
+    font-size: 1em;
+    font-weight: 600;
+  }
+
+  /* BIN SWITCHER */
+  #switcher {
+    position: absolute;
+    bottom: calc(14% + 4px);
+    right: 3%;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    z-index: 20;
+  }
+
+  .switchBtn {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.2);
+    background: rgba(0,0,0,0.5);
+    font-size: 1.1em;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.15s, border-color 0.15s;
+    backdrop-filter: blur(4px);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .switchBtn:active { transform: scale(0.88); }
+  .switchBtn.active { border-color: rgba(255,255,255,0.8); transform: scale(1.12); }
+
+  /* OVERLAY */
+  #overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(10,10,26,0.92);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    gap: 16px;
+    text-align: center;
+    padding: 20px;
+  }
+
+  #overlay.hidden { display: none; }
+
+  #overlay h1 {
+    font-size: 2.2em;
+    font-weight: 900;
+    color: #ffe066;
+    letter-spacing: 2px;
+    text-shadow: 0 0 20px rgba(255,224,102,0.5);
+    line-height: 1.1;
+  }
+
+  #overlay p {
+    color: #aaa;
+    font-size: 0.9em;
+    line-height: 1.6;
+    max-width: 260px;
+  }
+
+  #overlay .legend {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 4px 0;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 0.78em;
+    color: #ddd;
+  }
+
+  .legend-dot {
+    width: 18px; height: 18px;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+
+  #startBtn {
+    margin-top: 8px;
+    background: #ffe066;
+    color: #1a1a2e;
+    border: none;
+    border-radius: 30px;
+    padding: 14px 40px;
+    font-size: 1.1em;
+    font-weight: 800;
+    cursor: pointer;
+    letter-spacing: 1px;
+    box-shadow: 0 4px 20px rgba(255,224,102,0.4);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+
+  #startBtn:active { transform: scale(0.95); box-shadow: none; }
+
+  /* FLOATING SCORE */
+  .floatScore {
+    position: absolute;
+    font-size: 1.1em;
+    font-weight: 800;
+    pointer-events: none;
+    z-index: 30;
+    animation: floatUp 0.8s ease-out forwards;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.8);
+  }
+
+  @keyframes floatUp {
+    0% { opacity: 1; transform: translateY(0) translateX(-50%); }
+    100% { opacity: 0; transform: translateY(-50px) translateX(-50%); }
+  }
+
+  /* COMBO */
+  #combo {
+    position: absolute;
+    top: 48px; left: 50%; transform: translateX(-50%);
+    color: #ff6b6b;
+    font-weight: 900;
+    font-size: 1.2em;
+    z-index: 25;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+    text-shadow: 0 0 10px #ff6b6b;
+  }
+
+  #combo.show { opacity: 1; }
+
+  /* STARS */
+  .star {
+    position: absolute;
+    color: #ffe066;
+    font-size: 0.7em;
+    animation: starFade 1s ease-out forwards;
+    pointer-events: none;
+    z-index: 30;
+  }
+  @keyframes starFade {
+    0% { opacity: 1; transform: scale(1) translate(0,0); }
+    100% { opacity: 0; transform: scale(0) translate(var(--dx), var(--dy)); }
+  }
+
+  /* Splat on ground */
+  .splat {
+    position: absolute;
+    bottom: 14%;
+    font-size: 1.2em;
+    transform: translateX(-50%);
+    opacity: 0.8;
+    animation: splatFade 1.2s ease-out forwards;
+    pointer-events: none;
+    z-index: 6;
+  }
+  @keyframes splatFade {
+    0% { opacity: 0.9; transform: translateX(-50%) scale(1.2); }
+    100% { opacity: 0; transform: translateX(-50%) scale(0.8); }
+  }
+</style>
+</head>
+<body>
+
+<div id="gameWrapper">
+  <div id="sky"></div>
+  <div id="building"></div>
+  <div id="ground"></div>
+
+  <div id="hud">
+    <div id="scoreDisplay">⭐ 0</div>
+    <div id="levelDisplay">Niv. 1</div>
+    <div id="timerDisplay">2:00</div>
+  </div>
+
+  <div id="combo">COMBO!</div>
+
+  <div id="bin">
+    <div id="binLid"></div>
+    <div id="binBody"><span id="binLabel">♻️</span></div>
+  </div>
+
+  <div id="switcher">
+    <button class="switchBtn active" data-type="glass" title="Verre">🫙</button>
+    <button class="switchBtn" data-type="plastic" title="Plastique">🧴</button>
+    <button class="switchBtn" data-type="paper" title="Papier">📦</button>
+    <button class="switchBtn" data-type="food" title="Alimentaire">🥬</button>
+  </div>
+
+  <div id="overlay">
+    <h1>♻️ TriBin</h1>
+    <p>Attrape les déchets avant qu'ils touchent le sol !</p>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#9e9e9e"></div>Gris = Verre</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#fdd835"></div>Jaune = Plastique</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#1565c0"></div>Bleu = Papier</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#388e3c"></div>Vert = Alimentaire</div>
+    </div>
+    <p>✅ <strong>+1pt</strong> attraper &nbsp; 🎯 <strong>+5pts</strong> bonne poubelle<br>❌ <strong>-2pts</strong> rater</p>
+    <p style="font-size:0.75em;color:#666">Glisse à gauche/droite pour bouger · Boutons pour changer de poubelle</p>
+    <button id="startBtn">JOUER !</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const wrapper = document.getElementById('gameWrapper');
+  const buildingEl = document.getElementById('building');
+  const binEl = document.getElementById('bin');
+  const binLidEl = document.getElementById('binLid');
+  const binBodyEl = document.getElementById('binBody');
+  const binLabelEl = document.getElementById('binLabel');
+  const scoreDisplay = document.getElementById('scoreDisplay');
+  const timerDisplay = document.getElementById('timerDisplay');
+  const levelDisplay = document.getElementById('levelDisplay');
+  const overlay = document.getElementById('overlay');
+  const startBtn = document.getElementById('startBtn');
+  const switchBtns = document.querySelectorAll('.switchBtn');
+  const comboEl = document.getElementById('combo');
+
+  const BIN_TYPES = {
+    glass:   { color: '#9e9e9e', label: '🫙', name: 'Verre' },
+    plastic: { color: '#fdd835', label: '🧴', name: 'Plastique' },
+    paper:   { color: '#1565c0', label: '📦', name: 'Papier' },
+    food:    { color: '#388e3c', label: '🥬', name: 'Alimentaire' },
+  };
+
+  const WASTE_TYPES = {
+    glass:   ['🍾','🫙','🍶','🥃'],
+    plastic: ['🧴','🧃','🥤','🛍️'],
+    paper:   ['📰','📦','📋','🗞️'],
+    food:    ['🍎','🥑','🍌','🥬','🍕'],
+  };
+
+  let score = 0;
+  let timeLeft = 120;
+  let gameRunning = false;
+  let currentBinType = 'glass';
+  let binX = 50; // percent
+  let wastes = [];
+  let throwInterval, timerInterval, gameLoop;
+  let combo = 0;
+  let comboTimer;
+  let level = 1;
+  let throwDelay = 3000;
+  let fallSpeed = 1.0;
+  let windowCount = 0;
+
+  // Build the building
+  function buildBuilding() {
+    buildingEl.innerHTML = '';
+    const h = buildingEl.offsetHeight;
+    const floorH = Math.max(36, h / 7);
+    const floors = Math.floor(h / floorH);
+    const wins = 3;
+    buildingEl.style.gridTemplateRows = `repeat(${floors}, 1fr)`;
+    windowCount = floors * wins;
+
+    for (let f = 0; f < floors; f++) {
+      const floor = document.createElement('div');
+      floor.className = 'floor';
+      floor.style.height = floorH + 'px';
+      for (let w = 0; w < wins; w++) {
+        const win = document.createElement('div');
+        win.className = 'window';
+        const ww = `${Math.min(22, 70/wins)}%`;
+        win.style.width = ww;
+        win.style.height = (floorH * 0.55) + 'px';
+        // random light
+        if (Math.random() > 0.4) win.classList.add('lit');
+        win.dataset.floor = f;
+        win.dataset.win = w;
+        win.dataset.wins = wins;
+        floor.appendChild(win);
+      }
+      buildingEl.appendChild(floor);
+    }
+  }
+
+  function getWindowCenter(winEl) {
+    const wr = wrapper.getBoundingClientRect();
+    const r = winEl.getBoundingClientRect();
+    return {
+      x: ((r.left + r.width/2 - wr.left) / wr.width) * 100,
+      y: ((r.bottom - wr.top) / wr.height) * 100,
+    };
+  }
+
+  function throwWaste() {
+    if (!gameRunning) return;
+    const wins = buildingEl.querySelectorAll('.window');
+    if (!wins.length) return;
+    const win = wins[Math.floor(Math.random() * wins.length)];
+    const center = getWindowCenter(win);
+
+    const types = Object.keys(WASTE_TYPES);
+    const type = types[Math.floor(Math.random() * types.length)];
+    const emojis = WASTE_TYPES[type];
+    const emoji = emojis[Math.floor(Math.random() * emojis.length)];
+
+    // animate window
+    win.classList.add('throwing');
+    setTimeout(() => win.classList.remove('throwing'), 600);
+
+    const el = document.createElement('div');
+    el.className = 'waste';
+    el.textContent = emoji;
+    el.style.left = center.x + '%';
+    el.style.top = center.y + '%';
+    wrapper.appendChild(el);
+
+    wastes.push({ el, x: center.x, y: center.y, type, speed: fallSpeed * (0.8 + Math.random()*0.4), rot: (Math.random()-0.5)*4 });
+  }
+
+  function updateBinVisual() {
+    const bt = BIN_TYPES[currentBinType];
+    binBodyEl.style.background = bt.color;
+    binLidEl.style.background = bt.color;
+    const lighter = lightenColor(bt.color, 30);
+    binLidEl.style.background = lighter;
+    binLabelEl.textContent = bt.label;
+  }
+
+  function lightenColor(hex, amt) {
+    const n = parseInt(hex.replace('#',''), 16);
+    const r = Math.min(255, (n>>16) + amt);
+    const g = Math.min(255, ((n>>8)&0xff) + amt);
+    const b = Math.min(255, (n&0xff) + amt);
+    return `rgb(${r},${g},${b})`;
+  }
+
+  function addScore(pts, x, y, color) {
+    score = Math.max(0, score + pts);
+    scoreDisplay.textContent = '⭐ ' + score;
+    const fs = document.createElement('div');
+    fs.className = 'floatScore';
+    fs.textContent = (pts >= 0 ? '+' : '') + pts;
+    fs.style.color = pts > 0 ? '#ffe066' : '#ff4444';
+    if (pts === 5) fs.style.color = '#aaffaa';
+    fs.style.left = x + '%';
+    fs.style.top = y + '%';
+    wrapper.appendChild(fs);
+    setTimeout(() => fs.remove(), 900);
+  }
+
+  function spawnStars(x, y) {
+    for (let i = 0; i < 6; i++) {
+      const s = document.createElement('div');
+      s.className = 'star';
+      s.textContent = '✦';
+      const angle = (i/6) * Math.PI * 2;
+      const dist = 30 + Math.random()*20;
+      s.style.setProperty('--dx', Math.cos(angle)*dist + 'px');
+      s.style.setProperty('--dy', Math.sin(angle)*dist + 'px');
+      s.style.left = x + '%';
+      s.style.top = y + '%';
+      wrapper.appendChild(s);
+      setTimeout(() => s.remove(), 1000);
+    }
+  }
+
+  function showSplat(x, emoji) {
+    const sp = document.createElement('div');
+    sp.className = 'splat';
+    sp.textContent = emoji;
+    sp.style.left = x + '%';
+    wrapper.appendChild(sp);
+    setTimeout(() => sp.remove(), 1200);
+  }
+
+  function incrementCombo() {
+    combo++;
+    clearTimeout(comboTimer);
+    if (combo >= 3) {
+      comboEl.textContent = `🔥 COMBO x${combo}!`;
+      comboEl.classList.add('show');
+    }
+    comboTimer = setTimeout(() => {
+      combo = 0;
+      comboEl.classList.remove('show');
+    }, 3000);
+  }
+
+  function resetCombo() {
+    combo = 0;
+    comboEl.classList.remove('show');
+    clearTimeout(comboTimer);
+  }
+
+  // Game loop
+  function tick() {
+    if (!gameRunning) return;
+    const wh = wrapper.offsetHeight;
+    const groundPct = 86; // ground starts at 86%
+    const binPct = 83;    // bin catch zone
+
+    for (let i = wastes.length - 1; i >= 0; i--) {
+      const w = wastes[i];
+      w.y += w.speed * 0.25;
+      w.rot += (Math.random()-0.5)*2;
+      w.el.style.top = w.y + '%';
+      w.el.style.transform = `translateX(-50%) rotate(${w.rot}deg)`;
+
+      // check catch
+      const binLeft = binX - 7;
+      const binRight = binX + 7;
+
+      if (w.y >= binPct - 2 && w.y <= binPct + 4 && w.x >= binLeft && w.x <= binRight) {
+        // caught!
+        const correct = w.type === currentBinType;
+        const pts = correct ? 5 : 1;
+        addScore(pts, w.x, binPct - 5, correct ? '#aaffaa' : '#ffe066');
+        if (correct) {
+          spawnStars(w.x, binPct - 5);
+          incrementCombo();
+          binEl.classList.add('catch');
+          setTimeout(() => binEl.classList.remove('catch'), 300);
+        } else {
+          resetCombo();
+        }
+        w.el.remove();
+        wastes.splice(i, 1);
+        continue;
+      }
+
+      // hit ground
+      if (w.y >= groundPct) {
+        addScore(-2, w.x, groundPct - 8, '#ff4444');
+        showSplat(w.x, w.el.textContent);
+        resetCombo();
+        binEl.classList.add('miss');
+        setTimeout(() => binEl.classList.remove('miss'), 400);
+        w.el.remove();
+        wastes.splice(i, 1);
+      }
+    }
+
+    // Level up
+    const newLevel = Math.floor(score / 30) + 1;
+    if (newLevel !== level) {
+      level = Math.max(1, newLevel);
+      fallSpeed = 1 + (level - 1) * 0.15;
+      throwDelay = Math.max(1200, 3000 - (level-1)*200);
+      levelDisplay.textContent = `Niv. ${level}`;
+      clearInterval(throwInterval);
+      throwInterval = setInterval(throwWaste, throwDelay);
+    }
+
+    gameLoop = requestAnimationFrame(tick);
+  }
+
+  function startGame() {
+    score = 0;
+    timeLeft = 120;
+    level = 1;
+    fallSpeed = 1.0;
+    throwDelay = 3000;
+    combo = 0;
+    wastes.forEach(w => w.el.remove());
+    wastes = [];
+    scoreDisplay.textContent = '⭐ 0';
+    levelDisplay.textContent = 'Niv. 1';
+    comboEl.classList.remove('show');
+    overlay.classList.add('hidden');
+    gameRunning = true;
+    updateBinVisual();
+
+    clearInterval(throwInterval);
+    clearInterval(timerInterval);
+    cancelAnimationFrame(gameLoop);
+
+    throwInterval = setInterval(throwWaste, throwDelay);
+
+    timerInterval = setInterval(() => {
+      timeLeft--;
+      const m = Math.floor(timeLeft / 60);
+      const s = timeLeft % 60;
+      timerDisplay.textContent = `${m}:${s.toString().padStart(2,'0')}`;
+      if (timeLeft <= 0) endGame();
+    }, 1000);
+
+    gameLoop = requestAnimationFrame(tick);
+    // first throw quickly
+    setTimeout(throwWaste, 800);
+  }
+
+  function endGame() {
+    gameRunning = false;
+    clearInterval(throwInterval);
+    clearInterval(timerInterval);
+    cancelAnimationFrame(gameLoop);
+    wastes.forEach(w => w.el.remove());
+    wastes = [];
+
+    overlay.classList.remove('hidden');
+    overlay.innerHTML = `
+      <h1>⏱️ Terminé !</h1>
+      <p style="font-size:1.5em;color:#ffe066;font-weight:900;">Score final<br>${score} pts</p>
+      <p style="color:#aaa;">${score >= 80 ? '🏆 Champion du tri !' : score >= 40 ? '👍 Bien joué !' : '♻️ Continue à t\'entraîner !'}</p>
+      <button id="startBtn" style="margin-top:16px;background:#ffe066;color:#1a1a2e;border:none;border-radius:30px;padding:14px 40px;font-size:1.1em;font-weight:800;cursor:pointer;letter-spacing:1px;box-shadow:0 4px 20px rgba(255,224,102,0.4);">REJOUER</button>
+    `;
+    document.getElementById('startBtn').addEventListener('click', startGame);
+  }
+
+  startBtn.addEventListener('click', startGame);
+
+  // Bin switching
+  switchBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentBinType = btn.dataset.type;
+      switchBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      updateBinVisual();
+    });
+    btn.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      currentBinType = btn.dataset.type;
+      switchBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      updateBinVisual();
+    }, { passive: false });
+  });
+
+  // Bin movement - touch & mouse
+  let dragging = false;
+  let startX = 0;
+  let startBinX = 50;
+
+  function getRelX(clientX) {
+    const wr = wrapper.getBoundingClientRect();
+    return ((clientX - wr.left) / wr.width) * 100;
+  }
+
+  wrapper.addEventListener('touchstart', (e) => {
+    // ignore if on switcher
+    if (e.target.closest('#switcher')) return;
+    dragging = true;
+    startX = e.touches[0].clientX;
+    startBinX = binX;
+    e.preventDefault();
+  }, { passive: false });
+
+  wrapper.addEventListener('touchmove', (e) => {
+    if (!dragging) return;
+    const wr = wrapper.getBoundingClientRect();
+    const dx = ((e.touches[0].clientX - startX) / wr.width) * 100;
+    binX = Math.max(8, Math.min(92, startBinX + dx));
+    binEl.style.left = binX + '%';
+    e.preventDefault();
+  }, { passive: false });
+
+  wrapper.addEventListener('touchend', () => { dragging = false; });
+
+  wrapper.addEventListener('mousedown', (e) => {
+    if (e.target.closest('#switcher') || e.target.closest('#overlay')) return;
+    dragging = true;
+    startX = e.clientX;
+    startBinX = binX;
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const wr = wrapper.getBoundingClientRect();
+    const dx = ((e.clientX - startX) / wr.width) * 100;
+    binX = Math.max(8, Math.min(92, startBinX + dx));
+    binEl.style.left = binX + '%';
+  });
+
+  window.addEventListener('mouseup', () => { dragging = false; });
+
+  // keyboard
+  const BIN_ORDER = ['glass', 'plastic', 'paper', 'food'];
+
+  function switchBinByDelta(delta) {
+    const idx = BIN_ORDER.indexOf(currentBinType);
+    const next = (idx + delta + BIN_ORDER.length) % BIN_ORDER.length;
+    currentBinType = BIN_ORDER[next];
+    switchBtns.forEach(b => {
+      b.classList.toggle('active', b.dataset.type === currentBinType);
+    });
+    updateBinVisual();
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if (!gameRunning) return;
+    const step = 3;
+    if (e.key === 'ArrowLeft')  { e.preventDefault(); binX = Math.max(8, binX - step); binEl.style.left = binX + '%'; }
+    if (e.key === 'ArrowRight') { e.preventDefault(); binX = Math.min(92, binX + step); binEl.style.left = binX + '%'; }
+    if (e.key === 'ArrowUp')    { e.preventDefault(); switchBinByDelta(-1); }
+    if (e.key === 'ArrowDown')  { e.preventDefault(); switchBinByDelta(+1); }
+    if (e.key === '1') switchBtns[0].click();
+    if (e.key === '2') switchBtns[1].click();
+    if (e.key === '3') switchBtns[2].click();
+    if (e.key === '4') switchBtns[3].click();
+  });
+
+  // Init
+  binEl.style.left = binX + '%';
+  updateBinVisual();
+  buildBuilding();
+  window.addEventListener('resize', buildBuilding);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1790 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BGMaker — Générateur de Backgrounds</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+/* ============================================================
+   BGMaker — Style Sheet
+   Design: Industrial/Utilitarian meets creative tool
+   Typographie: Syne (display) + DM Mono (labels/values)
+   ============================================================ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0e0e12;
+  --surface: #16161c;
+  --surface2: #1e1e27;
+  --surface3: #26262f;
+  --border: #2e2e3a;
+  --border2: #3a3a48;
+  --accent: #7c6aff;
+  --accent2: #ff6a8a;
+  --accent-glow: rgba(124, 106, 255, 0.25);
+  --text: #e8e8f0;
+  --text2: #9898b0;
+  --text3: #5a5a70;
+  --font-display: 'Syne', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+  --radius: 8px;
+  --radius-lg: 14px;
+  --panel-w: 300px;
+  --header-h: 52px;
+  --transition: 0.15s ease;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 13px;
+  overflow: hidden;
+}
+
+/* ===== HEADER ===== */
+.app-header {
+  height: var(--header-h);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.logo-zone {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.logo-icon { font-size: 20px; color: var(--accent); }
+.logo-text {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: -0.5px;
+  color: var(--text);
+}
+.logo-tag {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text3);
+  background: var(--surface3);
+  border: 1px solid var(--border);
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-ghost {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text2);
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.btn-ghost:hover {
+  background: var(--surface3);
+  border-color: var(--border2);
+  color: var(--text);
+}
+
+.export-group { display: flex; gap: 6px; }
+.btn-export {
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  padding: 7px 16px;
+  border-radius: var(--radius);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  letter-spacing: 0.3px;
+  transition: var(--transition);
+}
+.btn-export:hover { background: #6a58e8; box-shadow: 0 0 16px var(--accent-glow); }
+.btn-export.secondary { background: var(--surface3); border: 1px solid var(--border2); color: var(--text2); }
+.btn-export.secondary:hover { background: var(--surface2); color: var(--text); }
+
+/* ===== APP BODY ===== */
+.app-body {
+  display: flex;
+  height: calc(100vh - var(--header-h));
+  overflow: hidden;
+}
+
+/* ===== CONTROL PANEL ===== */
+.control-panel {
+  width: var(--panel-w);
+  min-width: var(--panel-w);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border2) transparent;
+}
+
+.panel-section {
+  border-bottom: 1px solid var(--border);
+  padding: 14px 16px;
+}
+
+.presets-bar { padding: 12px 16px; }
+.section-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-bottom: 8px;
+}
+
+.preset-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.chip {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border: 1px solid var(--border2);
+  background: var(--surface2);
+  color: var(--text2);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+.chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* Section headers */
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  margin-bottom: 12px;
+}
+.section-icon { font-size: 14px; }
+.section-title { font-weight: 700; font-size: 13px; flex: 1; }
+.section-toggle {
+  background: none; border: none; color: var(--text3);
+  cursor: pointer; font-size: 12px; transition: transform 0.2s;
+}
+.section-toggle.closed { transform: rotate(-90deg); }
+.section-body { overflow: hidden; }
+.section-body.collapsed { display: none; }
+
+/* Tabs */
+.tab-row {
+  display: flex;
+  background: var(--surface3);
+  border-radius: var(--radius);
+  padding: 3px;
+  margin-bottom: 12px;
+  gap: 3px;
+}
+.tab {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text3);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 11px;
+  padding: 5px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.tab.active { background: var(--surface); color: var(--text); }
+.tab-content.hidden { display: none; }
+
+/* Color rows */
+.color-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.color-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text2);
+}
+input[type="color"] {
+  width: 36px; height: 28px;
+  border: 2px solid var(--border2);
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+  padding: 2px;
+  transition: var(--transition);
+}
+input[type="color"]:hover { border-color: var(--accent); }
+
+/* Sliders */
+.slider-row {
+  display: grid;
+  grid-template-columns: 60px 1fr 36px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.slider-row label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text2);
+}
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: var(--border2);
+  border-radius: 4px;
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 0 3px rgba(124,106,255,0.2);
+}
+.val-display {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--accent);
+  text-align: right;
+}
+
+/* Direction buttons */
+.direction-btns {
+  display: flex;
+  gap: 4px;
+  grid-column: 2 / 4;
+  margin-bottom: 6px;
+}
+.dir-btn {
+  flex: 1;
+  background: var(--surface3);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  padding: 5px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: var(--transition);
+}
+.dir-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.dir-btn:hover:not(.active) { border-color: var(--border2); color: var(--text); }
+
+/* Format buttons */
+.format-presets {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.fmt-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  padding: 10px 6px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.4;
+  transition: var(--transition);
+}
+.fmt-btn small { font-family: var(--font-mono); font-size: 9px; color: var(--text3); font-weight: 400; }
+.fmt-btn:hover { border-color: var(--border2); color: var(--text); }
+.fmt-btn.active { border-color: var(--accent); background: rgba(124,106,255,0.1); color: var(--accent); }
+.fmt-icon {
+  display: block;
+  border: 2px solid currentColor;
+  opacity: 0.7;
+}
+.fmt-icon.square { width: 20px; height: 20px; }
+.fmt-icon.portrait { width: 15px; height: 21px; }
+.fmt-icon.story { width: 12px; height: 20px; }
+.fmt-icon.custom { width: 20px; height: 20px; border: none; font-size: 18px; opacity: 1; }
+
+.custom-size-row {
+  display: flex; gap: 10px;
+  margin-top: 6px;
+}
+.custom-size-row label {
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--font-mono); font-size: 11px; color: var(--text2);
+}
+.custom-size-row input {
+  width: 70px;
+  background: var(--surface3);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  padding: 5px 8px;
+  border-radius: 5px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.custom-size-row input:focus { outline: none; border-color: var(--accent); }
+
+/* Pattern buttons */
+.pattern-grid {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.pat-btn {
+  flex: 1;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  padding: 8px 4px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 16px;
+  transition: var(--transition);
+  text-align: center;
+}
+.pat-btn:hover { border-color: var(--border2); color: var(--text); }
+.pat-btn.active { border-color: var(--accent); background: rgba(124,106,255,0.1); color: var(--accent); }
+
+/* Emoji picker */
+.emoji-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.emoji-pick {
+  width: 36px; height: 36px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 18px;
+  display: flex; align-items: center; justify-content: center;
+  transition: var(--transition);
+  color: var(--text3);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.emoji-pick:hover { border-color: var(--border2); }
+.emoji-pick.active { border-color: var(--accent); background: rgba(124,106,255,0.1); }
+
+input[type="text"]#emoji-custom {
+  width: 100%;
+  background: var(--surface3);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  padding: 7px 10px;
+  border-radius: 5px;
+  font-family: var(--font-display);
+  font-size: 20px;
+  text-align: center;
+  margin-bottom: 10px;
+}
+input[type="text"]#emoji-custom:focus { outline: none; border-color: var(--accent); }
+
+/* Toggle switch */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.toggle-switch { position: relative; display: inline-block; width: 34px; height: 18px; }
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-track {
+  position: absolute; inset: 0;
+  background: var(--surface3);
+  border: 1px solid var(--border2);
+  border-radius: 18px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.toggle-track::after {
+  content: '';
+  position: absolute;
+  left: 3px; top: 2px;
+  width: 12px; height: 12px;
+  background: var(--text3);
+  border-radius: 50%;
+  transition: 0.2s;
+}
+.toggle-switch input:checked + .toggle-track { background: var(--accent); border-color: var(--accent); }
+.toggle-switch input:checked + .toggle-track::after { transform: translateX(16px); background: #fff; }
+
+/* Upload zone */
+.upload-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 2px dashed var(--border2);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  cursor: pointer;
+  transition: var(--transition);
+  margin-bottom: 12px;
+}
+.upload-zone:hover { border-color: var(--accent); background: rgba(124,106,255,0.05); }
+.upload-icon { font-size: 22px; color: var(--text3); font-weight: 300; }
+.upload-text { font-family: var(--font-mono); font-size: 10px; color: var(--text3); }
+
+/* Logo position grid */
+.logo-position-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  margin-bottom: 12px;
+}
+.pos-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text3);
+  padding: 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: var(--transition);
+  text-align: center;
+}
+.pos-btn:hover { border-color: var(--border2); color: var(--text); }
+.pos-btn.active { border-color: var(--accent); background: rgba(124,106,255,0.1); color: var(--accent); }
+
+.btn-remove-logo {
+  width: 100%;
+  background: rgba(255,106,138,0.1);
+  border: 1px solid rgba(255,106,138,0.3);
+  color: var(--accent2);
+  padding: 7px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 600;
+  transition: var(--transition);
+  margin-top: 8px;
+}
+.btn-remove-logo:hover { background: rgba(255,106,138,0.2); }
+
+/* Disabled layer */
+.disabled-layer { opacity: 0.4; pointer-events: none; transition: 0.2s; }
+.disabled-layer.enabled { opacity: 1; pointer-events: all; }
+
+/* ===== PREVIEW AREA ===== */
+.preview-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.preview-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text3);
+}
+.zoom-info, .canvas-size-info { letter-spacing: 0.5px; }
+.canvas-size-info { color: var(--text2); }
+.guide-toggle {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text3);
+}
+.toggle-switch.small { width: 28px; height: 14px; }
+.toggle-switch.small .toggle-track::after { width: 9px; height: 9px; }
+.toggle-switch.small input:checked + .toggle-track::after { transform: translateX(14px); }
+
+.preview-wrapper {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(124,106,255,0.06) 0%, transparent 60%),
+    radial-gradient(ellipse at 70% 80%, rgba(255,106,138,0.04) 0%, transparent 60%),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 24px,
+      rgba(255,255,255,0.015) 24px,
+      rgba(255,255,255,0.015) 25px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 24px,
+      rgba(255,255,255,0.015) 24px,
+      rgba(255,255,255,0.015) 25px
+    );
+  scrollbar-width: thin;
+  scrollbar-color: var(--border2) transparent;
+}
+
+.canvas-container {
+  position: relative;
+  box-shadow: 0 0 0 1px var(--border2), 0 24px 80px rgba(0,0,0,0.7);
+  border-radius: 2px;
+  overflow: hidden;
+  flex-shrink: 0;
+  transform-origin: center center;
+}
+
+#main-canvas { display: block; }
+
+.guide-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.guide-line {
+  position: absolute;
+  background: rgba(124,106,255,0.3);
+}
+.guide-h {
+  top: 50%; left: 0; right: 0;
+  height: 1px;
+  transform: translateY(-50%);
+  background: repeating-linear-gradient(90deg, rgba(124,106,255,0.4) 0 6px, transparent 6px 12px);
+}
+.guide-v {
+  left: 50%; top: 0; bottom: 0;
+  width: 1px;
+  transform: translateX(-50%);
+  background: repeating-linear-gradient(0deg, rgba(124,106,255,0.4) 0 6px, transparent 6px 12px);
+}
+
+/* ===== TOAST ===== */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--surface3);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  opacity: 0;
+  pointer-events: none;
+  transition: 0.3s;
+  z-index: 999;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ===== MODAL ===== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+}
+.modal-overlay.hidden { display: none; }
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-lg);
+  width: 340px;
+  overflow: hidden;
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 700;
+  font-size: 14px;
+}
+.modal-close {
+  background: none; border: none; color: var(--text3);
+  cursor: pointer; font-size: 16px;
+}
+.modal-body {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.modal-body label { font-family: var(--font-mono); font-size: 11px; color: var(--text2); }
+.modal-body input[type="text"] {
+  width: 100%;
+  background: var(--surface3);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  font-family: var(--font-display);
+  font-size: 14px;
+}
+.modal-body input[type="text"]:focus { outline: none; border-color: var(--accent); }
+.modal-actions { display: flex; justify-content: flex-end; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+/* Responsive nuance */
+@media (max-width: 900px) {
+  :root { --panel-w: 260px; }
+}
+
+</style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="app-header">
+    <div class="logo-zone">
+      <span class="logo-icon">◈</span>
+      <span class="logo-text">BGMaker</span>
+      <span class="logo-tag">Studio</span>
+    </div>
+    <div class="header-actions">
+      <button class="btn-ghost" id="btn-random" title="Générer aléatoirement">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>
+        Random
+      </button>
+      <button class="btn-ghost" id="btn-save-preset" title="Sauvegarder preset">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Preset
+      </button>
+      <button class="btn-ghost" id="btn-load-preset" title="Charger preset">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Charger
+      </button>
+      <div class="export-group">
+        <button class="btn-export" id="btn-export-png">↓ PNG</button>
+        <button class="btn-export secondary" id="btn-export-jpg">↓ JPG</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="app-body">
+
+    <!-- PANEL GAUCHE -->
+    <aside class="control-panel">
+
+      <!-- PRESETS RAPIDES -->
+      <div class="panel-section presets-bar">
+        <div class="section-label">Styles rapides</div>
+        <div class="preset-chips">
+          <button class="chip active" data-preset="moderne">Moderne</button>
+          <button class="chip" data-preset="fun">Fun</button>
+          <button class="chip" data-preset="corporate">Corporate</button>
+          <button class="chip" data-preset="minimal">Minimal</button>
+        </div>
+      </div>
+
+      <!-- FORMAT -->
+      <div class="panel-section">
+        <div class="section-header">
+          <span class="section-icon">⬜</span>
+          <span class="section-title">Format</span>
+          <button class="section-toggle open">▾</button>
+        </div>
+        <div class="section-body">
+          <div class="format-presets">
+            <button class="fmt-btn active" data-w="1080" data-h="1080">
+              <span class="fmt-icon square"></span>
+              <span>Instagram<br><small>1080×1080</small></span>
+            </button>
+            <button class="fmt-btn" data-w="595" data-h="842">
+              <span class="fmt-icon portrait"></span>
+              <span>A4<br><small>595×842</small></span>
+            </button>
+            <button class="fmt-btn" data-w="1080" data-h="1920">
+              <span class="fmt-icon story"></span>
+              <span>Story<br><small>1080×1920</small></span>
+            </button>
+            <button class="fmt-btn" data-w="0" data-h="0">
+              <span class="fmt-icon custom">✎</span>
+              <span>Custom</span>
+            </button>
+          </div>
+          <div class="custom-size-row" id="custom-size" style="display:none">
+            <label>W <input type="number" id="canvas-w" value="1080" min="100" max="4096" /></label>
+            <label>H <input type="number" id="canvas-h" value="1080" min="100" max="4096" /></label>
+          </div>
+        </div>
+      </div>
+
+      <!-- BACKGROUND -->
+      <div class="panel-section">
+        <div class="section-header">
+          <span class="section-icon">🎨</span>
+          <span class="section-title">Arrière-plan</span>
+          <button class="section-toggle open">▾</button>
+        </div>
+        <div class="section-body">
+          <div class="tab-row">
+            <button class="tab active" data-tab="solid">Uni</button>
+            <button class="tab" data-tab="gradient">Dégradé</button>
+          </div>
+          <!-- Couleur unie -->
+          <div class="tab-content" id="tab-solid">
+            <div class="color-row">
+              <label class="color-label">Couleur</label>
+              <input type="color" id="bg-color" value="#1a1a2e" />
+            </div>
+          </div>
+          <!-- Gradient -->
+          <div class="tab-content hidden" id="tab-gradient">
+            <div class="color-row">
+              <label class="color-label">Couleur 1</label>
+              <input type="color" id="grad-c1" value="#667eea" />
+            </div>
+            <div class="color-row">
+              <label class="color-label">Couleur 2</label>
+              <input type="color" id="grad-c2" value="#764ba2" />
+            </div>
+            <div class="toggle-row">
+              <label class="color-label">3 couleurs</label>
+              <label class="toggle-switch">
+                <input type="checkbox" id="grad-3col" />
+                <span class="toggle-track"></span>
+              </label>
+            </div>
+            <div class="color-row" id="grad-c3-row" style="display:none">
+              <label class="color-label">Couleur 3</label>
+              <input type="color" id="grad-c3" value="#f64f59" />
+            </div>
+            <div class="slider-row">
+              <label class="color-label">Direction</label>
+              <div class="direction-btns">
+                <button class="dir-btn active" data-angle="90">→</button>
+                <button class="dir-btn" data-angle="180">↓</button>
+                <button class="dir-btn" data-angle="135">↗</button>
+                <button class="dir-btn" data-angle="45">↘</button>
+              </div>
+              <input type="range" id="grad-angle" min="0" max="360" value="90" />
+              <span class="val-display" id="grad-angle-val">90°</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PATTERN -->
+      <div class="panel-section">
+        <div class="section-header">
+          <span class="section-icon">◉</span>
+          <span class="section-title">Pattern</span>
+          <button class="section-toggle open">▾</button>
+        </div>
+        <div class="section-body">
+          <div class="pattern-grid">
+            <button class="pat-btn active" data-pattern="none" title="Aucun">✕</button>
+            <button class="pat-btn" data-pattern="lines" title="Lignes">≡</button>
+            <button class="pat-btn" data-pattern="grid" title="Grille">⊞</button>
+            <button class="pat-btn" data-pattern="dots" title="Points">⠿</button>
+            <button class="pat-btn" data-pattern="waves" title="Vagues">∿</button>
+          </div>
+          <div id="pattern-options">
+            <div class="color-row">
+              <label class="color-label">Couleur</label>
+              <input type="color" id="pat-color" value="#ffffff" />
+            </div>
+            <div class="slider-row">
+              <label>Opacité</label>
+              <input type="range" id="pat-opacity" min="0" max="1" step="0.01" value="0.15" />
+              <span class="val-display" id="pat-opacity-val">15%</span>
+            </div>
+            <div class="slider-row">
+              <label>Taille</label>
+              <input type="range" id="pat-size" min="5" max="100" value="30" />
+              <span class="val-display" id="pat-size-val">30</span>
+            </div>
+            <div class="slider-row">
+              <label>Rotation</label>
+              <input type="range" id="pat-rotation" min="0" max="360" value="45" />
+              <span class="val-display" id="pat-rotation-val">45°</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EMOJI -->
+      <div class="panel-section">
+        <div class="section-header">
+          <span class="section-icon">✦</span>
+          <span class="section-title">Élément central</span>
+          <button class="section-toggle open">▾</button>
+        </div>
+        <div class="section-body">
+          <div class="emoji-quick">
+            <button class="emoji-pick active" data-emoji="">—</button>
+            <button class="emoji-pick" data-emoji="🌟">🌟</button>
+            <button class="emoji-pick" data-emoji="🎯">🎯</button>
+            <button class="emoji-pick" data-emoji="🚀">🚀</button>
+            <button class="emoji-pick" data-emoji="💡">💡</button>
+            <button class="emoji-pick" data-emoji="🎉">🎉</button>
+            <button class="emoji-pick" data-emoji="❤️">❤️</button>
+            <button class="emoji-pick" data-emoji="⚡">⚡</button>
+          </div>
+          <div class="color-row">
+            <label class="color-label">Personnalisé</label>
+            <input type="text" id="emoji-custom" placeholder="Tapez un emoji…" maxlength="4" />
+          </div>
+          <div class="slider-row">
+            <label>Taille</label>
+            <input type="range" id="emoji-size" min="20" max="600" value="200" />
+            <span class="val-display" id="emoji-size-val">200</span>
+          </div>
+          <div class="slider-row">
+            <label>Opacité</label>
+            <input type="range" id="emoji-opacity" min="0" max="1" step="0.01" value="1" />
+            <span class="val-display" id="emoji-opacity-val">100%</span>
+          </div>
+          <div class="slider-row">
+            <label>Position X</label>
+            <input type="range" id="emoji-x" min="0" max="100" value="50" />
+            <span class="val-display" id="emoji-x-val">50%</span>
+          </div>
+          <div class="slider-row">
+            <label>Position Y</label>
+            <input type="range" id="emoji-y" min="0" max="100" value="50" />
+            <span class="val-display" id="emoji-y-val">50%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- BORDURE -->
+      <div class="panel-section">
+        <div class="section-header">
+          <span class="section-icon">⬡</span>
+          <span class="section-title">Bordure</span>
+          <button class="section-toggle open">▾</button>
+        </div>
+        <div class="section-body">
+          <div class="toggle-row">
+            <label class="color-label">Activer</label>
+            <label class="toggle-switch">
+              <input type="checkbox" id="border-enabled" />
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+          <div id="border-options" class="disabled-layer">
+            <div class="color-row">
+              <label class="color-label">Couleur</label>
+              <input type="color" id="border-color" value="#ffffff" />
+            </div>
+            <div class="slider-row">
+              <label>Épaisseur</label>
+              <input type="range" id="border-width" min="1" max="80" value="8" />
+              <span class="val-display" id="border-width-val">8px</span>
+            </div>
+            <div class="slider-row">
+              <label>Opacité</label>
+              <input type="range" id="border-opacity" min="0" max="1" step="0.01" value="1" />
+              <span class="val-display" id="border-opacity-val">100%</span>
+            </div>
+            <div class="slider-row">
+              <label>Offset</label>
+              <input type="range" id="border-offset" min="0" max="100" value="16" />
+              <span class="val-display" id="border-offset-val">16px</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LOGO -->
+      <div class="panel-section">
+        <div class="section-header">
+          <span class="section-icon">🖼</span>
+          <span class="section-title">Logo / Image</span>
+          <button class="section-toggle open">▾</button>
+        </div>
+        <div class="section-body">
+          <label class="upload-zone" id="logo-upload-zone">
+            <input type="file" id="logo-file" accept="image/png,image/jpeg,image/svg+xml,image/webp" hidden />
+            <span class="upload-icon">+</span>
+            <span class="upload-text">Importer PNG/JPG</span>
+          </label>
+          <div id="logo-controls" class="disabled-layer">
+            <div class="logo-position-grid">
+              <button class="pos-btn" data-pos="top-left">↖</button>
+              <button class="pos-btn" data-pos="top">↑</button>
+              <button class="pos-btn" data-pos="top-right">↗</button>
+              <button class="pos-btn" data-pos="left">←</button>
+              <button class="pos-btn active" data-pos="center">✕</button>
+              <button class="pos-btn" data-pos="right">→</button>
+              <button class="pos-btn" data-pos="bottom-left">↙</button>
+              <button class="pos-btn" data-pos="bottom">↓</button>
+              <button class="pos-btn" data-pos="bottom-right">↘</button>
+            </div>
+            <div class="slider-row">
+              <label>Taille</label>
+              <input type="range" id="logo-size" min="5" max="100" value="30" />
+              <span class="val-display" id="logo-size-val">30%</span>
+            </div>
+            <div class="slider-row">
+              <label>Opacité</label>
+              <input type="range" id="logo-opacity" min="0" max="1" step="0.01" value="1" />
+              <span class="val-display" id="logo-opacity-val">100%</span>
+            </div>
+            <button class="btn-remove-logo" id="btn-remove-logo">Supprimer l'image</button>
+          </div>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- ZONE PREVIEW -->
+    <main class="preview-area">
+      <div class="preview-toolbar">
+        <div class="zoom-info" id="zoom-info">Zoom : 45%</div>
+        <div class="canvas-size-info" id="canvas-size-info">1080 × 1080 px</div>
+        <div class="guide-toggle">
+          <label class="toggle-switch small">
+            <input type="checkbox" id="show-guides" checked />
+            <span class="toggle-track"></span>
+          </label>
+          <span>Guides</span>
+        </div>
+      </div>
+      <div class="preview-wrapper" id="preview-wrapper">
+        <div class="canvas-container" id="canvas-container">
+          <canvas id="main-canvas"></canvas>
+          <div class="guide-overlay" id="guide-overlay"></div>
+        </div>
+      </div>
+    </main>
+
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast"></div>
+
+  <!-- PRESET MODAL -->
+  <div class="modal-overlay hidden" id="preset-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <span>Sauvegarder le preset</span>
+        <button class="modal-close" id="modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <label>Nom du preset</label>
+        <input type="text" id="preset-name" placeholder="Mon preset…" />
+        <div class="modal-actions">
+          <button class="btn-export" id="btn-confirm-save">Sauvegarder</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+/**
+ * BGMaker — Application JavaScript
+ * Architecture: State → Render pipeline
+ * Toutes les modifications de l'UI → updateState() → render()
+ */
+
+'use strict';
+
+// ============================================================
+// ÉTAT GLOBAL
+// ============================================================
+const state = {
+  canvas: { w: 1080, h: 1080 },
+  bg: {
+    type: 'gradient', // 'solid' | 'gradient'
+    color: '#1a1a2e',
+    grad: {
+      c1: '#667eea', c2: '#764ba2', c3: '#f64f59',
+      use3: false, angle: 90
+    }
+  },
+  pattern: {
+    type: 'none', // 'none' | 'lines' | 'grid' | 'dots' | 'waves'
+    color: '#ffffff',
+    opacity: 0.15,
+    size: 30,
+    rotation: 45
+  },
+  emoji: {
+    char: '',
+    size: 200,
+    opacity: 1,
+    x: 50, // %
+    y: 50
+  },
+  border: {
+    enabled: false,
+    color: '#ffffff',
+    width: 8,
+    opacity: 1,
+    offset: 16
+  },
+  logo: {
+    img: null,      // HTMLImageElement
+    size: 30,       // % of canvas width
+    opacity: 1,
+    position: 'center'
+  }
+};
+
+// ============================================================
+// CANVAS + CONTEXTE
+// ============================================================
+const canvas = document.getElementById('main-canvas');
+const ctx = canvas.getContext('2d');
+
+// ============================================================
+// ZOOM & RESIZE
+// ============================================================
+const MAX_PREVIEW_W = () => document.querySelector('.preview-wrapper').clientWidth - 80;
+const MAX_PREVIEW_H = () => document.querySelector('.preview-wrapper').clientHeight - 80;
+
+function computeZoom() {
+  const scaleX = MAX_PREVIEW_W() / state.canvas.w;
+  const scaleY = MAX_PREVIEW_H() / state.canvas.h;
+  return Math.min(scaleX, scaleY, 1);
+}
+
+function applyZoom() {
+  const z = computeZoom();
+  const container = document.getElementById('canvas-container');
+  container.style.width  = state.canvas.w + 'px';
+  container.style.height = state.canvas.h + 'px';
+  container.style.transform = `scale(${z})`;
+  document.getElementById('zoom-info').textContent = `Zoom : ${Math.round(z * 100)}%`;
+  document.getElementById('canvas-size-info').textContent = `${state.canvas.w} × ${state.canvas.h} px`;
+}
+
+window.addEventListener('resize', () => { applyZoom(); });
+
+// ============================================================
+// RENDER PRINCIPAL
+// ============================================================
+function render() {
+  canvas.width  = state.canvas.w;
+  canvas.height = state.canvas.h;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  drawBackground();
+  drawPattern();
+  drawEmoji();
+  drawLogo();
+  drawBorder();
+  applyZoom();
+  drawGuides();
+}
+
+// ---- Background ----
+function drawBackground() {
+  if (state.bg.type === 'solid') {
+    ctx.fillStyle = state.bg.color;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  } else {
+    const angle = state.bg.grad.angle;
+    const rad   = (angle - 90) * Math.PI / 180;
+    const cx    = canvas.width / 2;
+    const cy    = canvas.height / 2;
+    const halfDiag = Math.sqrt(cx * cx + cy * cy);
+    const x0 = cx - Math.cos(rad) * halfDiag;
+    const y0 = cy - Math.sin(rad) * halfDiag;
+    const x1 = cx + Math.cos(rad) * halfDiag;
+    const y1 = cy + Math.sin(rad) * halfDiag;
+
+    const grad = ctx.createLinearGradient(x0, y0, x1, y1);
+    grad.addColorStop(0, state.bg.grad.c1);
+    if (state.bg.grad.use3) {
+      grad.addColorStop(0.5, state.bg.grad.c2);
+      grad.addColorStop(1,   state.bg.grad.c3);
+    } else {
+      grad.addColorStop(1, state.bg.grad.c2);
+    }
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+}
+
+// ---- Pattern ----
+function drawPattern() {
+  if (state.pattern.type === 'none') return;
+
+  ctx.save();
+  ctx.globalAlpha = state.pattern.opacity;
+
+  const offscreen = document.createElement('canvas');
+  offscreen.width  = canvas.width;
+  offscreen.height = canvas.height;
+  const octx = offscreen.getContext('2d');
+  octx.strokeStyle = state.pattern.color;
+  octx.fillStyle   = state.pattern.color;
+
+  const s = state.pattern.size;
+
+  switch (state.pattern.type) {
+    case 'lines':
+      octx.save();
+      octx.translate(canvas.width / 2, canvas.height / 2);
+      octx.rotate((state.pattern.rotation * Math.PI) / 180);
+      octx.translate(-canvas.width / 2, -canvas.height / 2);
+      octx.lineWidth = Math.max(1, s * 0.08);
+      for (let i = -canvas.height * 2; i < canvas.width + canvas.height * 2; i += s) {
+        octx.beginPath();
+        octx.moveTo(i, -canvas.height);
+        octx.lineTo(i, canvas.height * 3);
+        octx.stroke();
+      }
+      octx.restore();
+      break;
+
+    case 'grid':
+      octx.lineWidth = Math.max(0.5, s * 0.04);
+      for (let x = 0; x < canvas.width + s; x += s) {
+        octx.beginPath(); octx.moveTo(x, 0); octx.lineTo(x, canvas.height); octx.stroke();
+      }
+      for (let y = 0; y < canvas.height + s; y += s) {
+        octx.beginPath(); octx.moveTo(0, y); octx.lineTo(canvas.width, y); octx.stroke();
+      }
+      break;
+
+    case 'dots':
+      const r = Math.max(1, s * 0.12);
+      for (let x = s / 2; x < canvas.width + s; x += s) {
+        for (let y = s / 2; y < canvas.height + s; y += s) {
+          octx.beginPath();
+          octx.arc(x, y, r, 0, Math.PI * 2);
+          octx.fill();
+        }
+      }
+      break;
+
+    case 'waves':
+      octx.lineWidth = Math.max(1, s * 0.06);
+      const waveH = s * 0.5;
+      const waveL = s * 1.5;
+      for (let row = -s; row < canvas.height + s; row += s) {
+        octx.beginPath();
+        for (let x = 0; x <= canvas.width + waveL; x += 2) {
+          const y = row + Math.sin((x / waveL) * Math.PI * 2) * waveH;
+          x === 0 ? octx.moveTo(x, y) : octx.lineTo(x, y);
+        }
+        octx.stroke();
+      }
+      break;
+  }
+
+  ctx.drawImage(offscreen, 0, 0);
+  ctx.restore();
+}
+
+// ---- Emoji / élément central ----
+function drawEmoji() {
+  if (!state.emoji.char) return;
+  ctx.save();
+  ctx.globalAlpha = state.emoji.opacity;
+  const fontSize = state.emoji.size;
+  ctx.font = `${fontSize}px serif`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  const x = (state.emoji.x / 100) * canvas.width;
+  const y = (state.emoji.y / 100) * canvas.height;
+  ctx.fillText(state.emoji.char, x, y);
+  ctx.restore();
+}
+
+// ---- Logo ----
+function drawLogo() {
+  if (!state.logo.img) return;
+  ctx.save();
+  ctx.globalAlpha = state.logo.opacity;
+
+  const maxW = (state.logo.size / 100) * canvas.width;
+  const ratio = state.logo.img.naturalWidth / state.logo.img.naturalHeight;
+  const imgW  = maxW;
+  const imgH  = maxW / ratio;
+
+  const positions = {
+    'top-left':     [0, 0],
+    'top':          [canvas.width / 2 - imgW / 2, 0],
+    'top-right':    [canvas.width - imgW, 0],
+    'left':         [0, canvas.height / 2 - imgH / 2],
+    'center':       [canvas.width / 2 - imgW / 2, canvas.height / 2 - imgH / 2],
+    'right':        [canvas.width - imgW, canvas.height / 2 - imgH / 2],
+    'bottom-left':  [0, canvas.height - imgH],
+    'bottom':       [canvas.width / 2 - imgW / 2, canvas.height - imgH],
+    'bottom-right': [canvas.width - imgW, canvas.height - imgH]
+  };
+  const [x, y] = positions[state.logo.position] || [0, 0];
+  ctx.drawImage(state.logo.img, x, y, imgW, imgH);
+  ctx.restore();
+}
+
+// ---- Bordure ----
+function drawBorder() {
+  if (!state.border.enabled) return;
+  ctx.save();
+  ctx.globalAlpha = state.border.opacity;
+  ctx.strokeStyle = state.border.color;
+  ctx.lineWidth = state.border.width;
+  const o = state.border.offset + state.border.width / 2;
+  ctx.strokeRect(o, o, canvas.width - o * 2, canvas.height - o * 2);
+  ctx.restore();
+}
+
+// ---- Guides ----
+function drawGuides() {
+  const overlay = document.getElementById('guide-overlay');
+  const show = document.getElementById('show-guides').checked;
+  if (show) {
+    overlay.innerHTML = '<div class="guide-line guide-h"></div><div class="guide-line guide-v"></div>';
+  } else {
+    overlay.innerHTML = '';
+  }
+}
+
+// ============================================================
+// EXPORT
+// ============================================================
+function exportCanvas(format) {
+  // Render à la résolution complète (sans zoom) directement
+  const mime = format === 'jpg' ? 'image/jpeg' : 'image/png';
+  const quality = format === 'jpg' ? 0.95 : 1;
+  const dataURL = canvas.toDataURL(mime, quality);
+  const a = document.createElement('a');
+  a.download = `bg-maker-${state.canvas.w}x${state.canvas.h}.${format}`;
+  a.href = dataURL;
+  a.click();
+  showToast(`Export ${format.toUpperCase()} téléchargé ✓`);
+}
+
+// ============================================================
+// PRESETS DE STYLE
+// ============================================================
+const STYLE_PRESETS = {
+  moderne: {
+    bg: { type: 'gradient', grad: { c1: '#0f0c29', c2: '#302b63', c3: '#24243e', use3: true, angle: 135 } },
+    pattern: { type: 'grid', color: '#ffffff', opacity: 0.06, size: 60, rotation: 0 },
+    emoji: { char: '⚡', size: 280, opacity: 0.12, x: 50, y: 50 },
+    border: { enabled: true, color: '#7c6aff', width: 4, opacity: 0.8, offset: 20 }
+  },
+  fun: {
+    bg: { type: 'gradient', grad: { c1: '#f093fb', c2: '#f5576c', c3: '#fda085', use3: true, angle: 45 } },
+    pattern: { type: 'dots', color: '#ffffff', opacity: 0.2, size: 28, rotation: 0 },
+    emoji: { char: '🎉', size: 260, opacity: 0.25, x: 50, y: 50 },
+    border: { enabled: false, color: '#ffffff', width: 6, opacity: 1, offset: 18 }
+  },
+  corporate: {
+    bg: { type: 'gradient', grad: { c1: '#1e3c72', c2: '#2a5298', c3: '#1e3c72', use3: false, angle: 160 } },
+    pattern: { type: 'lines', color: '#ffffff', opacity: 0.04, size: 40, rotation: 135 },
+    emoji: { char: '', size: 200, opacity: 1, x: 50, y: 50 },
+    border: { enabled: true, color: '#ffffff', width: 6, opacity: 0.3, offset: 24 }
+  },
+  minimal: {
+    bg: { type: 'solid', color: '#f5f5f0' },
+    pattern: { type: 'none', color: '#000000', opacity: 0.05, size: 40, rotation: 0 },
+    emoji: { char: '✦', size: 180, opacity: 0.08, x: 50, y: 50 },
+    border: { enabled: true, color: '#1a1a1a', width: 2, opacity: 1, offset: 28 }
+  }
+};
+
+function applyStylePreset(name) {
+  const p = STYLE_PRESETS[name];
+  if (!p) return;
+  Object.assign(state.bg, p.bg);
+  if (p.bg.grad) Object.assign(state.bg.grad, p.bg.grad);
+  Object.assign(state.pattern, p.pattern);
+  Object.assign(state.emoji, p.emoji);
+  Object.assign(state.border, p.border);
+  syncUIFromState();
+  render();
+}
+
+// ============================================================
+// SYNC UI → STATE
+// ============================================================
+function syncUIFromState() {
+  // Background
+  const bgType = state.bg.type;
+  document.querySelectorAll('.tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.tab === bgType);
+  });
+  document.getElementById('tab-solid').classList.toggle('hidden', bgType !== 'solid');
+  document.getElementById('tab-gradient').classList.toggle('hidden', bgType !== 'gradient');
+
+  document.getElementById('bg-color').value = state.bg.color;
+  document.getElementById('grad-c1').value = state.bg.grad.c1;
+  document.getElementById('grad-c2').value = state.bg.grad.c2;
+  document.getElementById('grad-c3').value = state.bg.grad.c3;
+  document.getElementById('grad-3col').checked = state.bg.grad.use3;
+  document.getElementById('grad-c3-row').style.display = state.bg.grad.use3 ? 'flex' : 'none';
+  document.getElementById('grad-angle').value = state.bg.grad.angle;
+  document.getElementById('grad-angle-val').textContent = state.bg.grad.angle + '°';
+
+  // Pattern
+  document.querySelectorAll('.pat-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.pattern === state.pattern.type);
+  });
+  document.getElementById('pat-color').value = state.pattern.color;
+  document.getElementById('pat-opacity').value = state.pattern.opacity;
+  document.getElementById('pat-opacity-val').textContent = Math.round(state.pattern.opacity * 100) + '%';
+  document.getElementById('pat-size').value = state.pattern.size;
+  document.getElementById('pat-size-val').textContent = state.pattern.size;
+  document.getElementById('pat-rotation').value = state.pattern.rotation;
+  document.getElementById('pat-rotation-val').textContent = state.pattern.rotation + '°';
+
+  // Emoji
+  document.getElementById('emoji-size').value = state.emoji.size;
+  document.getElementById('emoji-size-val').textContent = state.emoji.size;
+  document.getElementById('emoji-opacity').value = state.emoji.opacity;
+  document.getElementById('emoji-opacity-val').textContent = Math.round(state.emoji.opacity * 100) + '%';
+  document.getElementById('emoji-x').value = state.emoji.x;
+  document.getElementById('emoji-x-val').textContent = state.emoji.x + '%';
+  document.getElementById('emoji-y').value = state.emoji.y;
+  document.getElementById('emoji-y-val').textContent = state.emoji.y + '%';
+
+  // Update emoji quick-pick highlight
+  document.querySelectorAll('.emoji-pick').forEach(b => {
+    b.classList.toggle('active', b.dataset.emoji === state.emoji.char);
+  });
+  document.getElementById('emoji-custom').value = state.emoji.char;
+
+  // Border
+  document.getElementById('border-enabled').checked = state.border.enabled;
+  document.getElementById('border-options').classList.toggle('enabled', state.border.enabled);
+  document.getElementById('border-color').value = state.border.color;
+  document.getElementById('border-width').value = state.border.width;
+  document.getElementById('border-width-val').textContent = state.border.width + 'px';
+  document.getElementById('border-opacity').value = state.border.opacity;
+  document.getElementById('border-opacity-val').textContent = Math.round(state.border.opacity * 100) + '%';
+  document.getElementById('border-offset').value = state.border.offset;
+  document.getElementById('border-offset-val').textContent = state.border.offset + 'px';
+
+  // Logo
+  document.getElementById('logo-controls').classList.toggle('enabled', !!state.logo.img);
+  document.getElementById('logo-size').value = state.logo.size;
+  document.getElementById('logo-size-val').textContent = state.logo.size + '%';
+  document.getElementById('logo-opacity').value = state.logo.opacity;
+  document.getElementById('logo-opacity-val').textContent = Math.round(state.logo.opacity * 100) + '%';
+  document.querySelectorAll('.pos-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.pos === state.logo.position);
+  });
+}
+
+// ============================================================
+// ÉVÉNEMENTS UI
+// ============================================================
+function bindEvents() {
+
+  // ----- Section toggles -----
+  document.querySelectorAll('.section-header').forEach(header => {
+    header.addEventListener('click', () => {
+      const body   = header.nextElementSibling;
+      const toggle = header.querySelector('.section-toggle');
+      const open   = !body.classList.contains('collapsed');
+      body.classList.toggle('collapsed', open);
+      toggle.classList.toggle('open', !open);
+      toggle.classList.toggle('closed', open);
+    });
+  });
+
+  // ----- Format -----
+  document.querySelectorAll('.fmt-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.fmt-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const w = parseInt(btn.dataset.w);
+      const h = parseInt(btn.dataset.h);
+      if (w === 0) {
+        document.getElementById('custom-size').style.display = 'flex';
+      } else {
+        document.getElementById('custom-size').style.display = 'none';
+        state.canvas.w = w;
+        state.canvas.h = h;
+        render();
+      }
+    });
+  });
+  document.getElementById('canvas-w').addEventListener('input', e => {
+    state.canvas.w = parseInt(e.target.value) || 1080;
+    render();
+  });
+  document.getElementById('canvas-h').addEventListener('input', e => {
+    state.canvas.h = parseInt(e.target.value) || 1080;
+    render();
+  });
+
+  // ----- Background tabs -----
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      state.bg.type = tab.dataset.tab;
+      document.getElementById('tab-solid').classList.toggle('hidden', state.bg.type !== 'solid');
+      document.getElementById('tab-gradient').classList.toggle('hidden', state.bg.type !== 'gradient');
+      render();
+    });
+  });
+
+  document.getElementById('bg-color').addEventListener('input', e => {
+    state.bg.color = e.target.value; render();
+  });
+  ['grad-c1','grad-c2','grad-c3'].forEach(id => {
+    const key = id.replace('grad-','');
+    document.getElementById(id).addEventListener('input', e => {
+      state.bg.grad[key] = e.target.value; render();
+    });
+  });
+  document.getElementById('grad-3col').addEventListener('change', e => {
+    state.bg.grad.use3 = e.target.checked;
+    document.getElementById('grad-c3-row').style.display = state.bg.grad.use3 ? 'flex' : 'none';
+    render();
+  });
+  document.getElementById('grad-angle').addEventListener('input', e => {
+    state.bg.grad.angle = parseInt(e.target.value);
+    document.getElementById('grad-angle-val').textContent = state.bg.grad.angle + '°';
+    document.querySelectorAll('.dir-btn').forEach(b => b.classList.remove('active'));
+    render();
+  });
+  document.querySelectorAll('.dir-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.dir-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.bg.grad.angle = parseInt(btn.dataset.angle);
+      document.getElementById('grad-angle').value = state.bg.grad.angle;
+      document.getElementById('grad-angle-val').textContent = state.bg.grad.angle + '°';
+      render();
+    });
+  });
+
+  // ----- Pattern -----
+  document.querySelectorAll('.pat-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.pat-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.pattern.type = btn.dataset.pattern;
+      render();
+    });
+  });
+  document.getElementById('pat-color').addEventListener('input', e => {
+    state.pattern.color = e.target.value; render();
+  });
+  sliderBind('pat-opacity', v => { state.pattern.opacity = parseFloat(v); return Math.round(v*100)+'%'; });
+  sliderBind('pat-size', v => { state.pattern.size = parseInt(v); return v; });
+  sliderBind('pat-rotation', v => { state.pattern.rotation = parseInt(v); return v+'°'; });
+
+  // ----- Emoji -----
+  document.querySelectorAll('.emoji-pick').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.emoji-pick').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.emoji.char = btn.dataset.emoji;
+      document.getElementById('emoji-custom').value = state.emoji.char;
+      render();
+    });
+  });
+  document.getElementById('emoji-custom').addEventListener('input', e => {
+    state.emoji.char = e.target.value;
+    document.querySelectorAll('.emoji-pick').forEach(b => b.classList.remove('active'));
+    render();
+  });
+  sliderBind('emoji-size', v => { state.emoji.size = parseInt(v); return v; });
+  sliderBind('emoji-opacity', v => { state.emoji.opacity = parseFloat(v); return Math.round(v*100)+'%'; });
+  sliderBind('emoji-x', v => { state.emoji.x = parseInt(v); return v+'%'; });
+  sliderBind('emoji-y', v => { state.emoji.y = parseInt(v); return v+'%'; });
+
+  // ----- Border -----
+  document.getElementById('border-enabled').addEventListener('change', e => {
+    state.border.enabled = e.target.checked;
+    document.getElementById('border-options').classList.toggle('enabled', state.border.enabled);
+    render();
+  });
+  document.getElementById('border-color').addEventListener('input', e => {
+    state.border.color = e.target.value; render();
+  });
+  sliderBind('border-width',   v => { state.border.width = parseInt(v); return v+'px'; });
+  sliderBind('border-opacity', v => { state.border.opacity = parseFloat(v); return Math.round(v*100)+'%'; });
+  sliderBind('border-offset',  v => { state.border.offset = parseInt(v); return v+'px'; });
+
+  // ----- Logo -----
+  document.getElementById('logo-upload-zone').addEventListener('click', () => {
+    document.getElementById('logo-file').click();
+  });
+  document.getElementById('logo-file').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
+        state.logo.img = img;
+        document.getElementById('logo-controls').classList.add('enabled');
+        render();
+        showToast('Image importée ✓');
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+  sliderBind('logo-size',    v => { state.logo.size = parseInt(v); return v+'%'; });
+  sliderBind('logo-opacity', v => { state.logo.opacity = parseFloat(v); return Math.round(v*100)+'%'; });
+  document.querySelectorAll('.pos-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.pos-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.logo.position = btn.dataset.pos;
+      render();
+    });
+  });
+  document.getElementById('btn-remove-logo').addEventListener('click', () => {
+    state.logo.img = null;
+    document.getElementById('logo-file').value = '';
+    document.getElementById('logo-controls').classList.remove('enabled');
+    render();
+    showToast('Image supprimée');
+  });
+
+  // ----- Style presets -----
+  document.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      applyStylePreset(chip.dataset.preset);
+    });
+  });
+
+  // ----- Random -----
+  document.getElementById('btn-random').addEventListener('click', randomize);
+
+  // ----- Export -----
+  document.getElementById('btn-export-png').addEventListener('click', () => exportCanvas('png'));
+  document.getElementById('btn-export-jpg').addEventListener('click', () => exportCanvas('jpg'));
+
+  // ----- Guides -----
+  document.getElementById('show-guides').addEventListener('change', drawGuides);
+
+  // ----- Preset save/load -----
+  document.getElementById('btn-save-preset').addEventListener('click', () => {
+    document.getElementById('preset-modal').classList.remove('hidden');
+    document.getElementById('preset-name').focus();
+  });
+  document.getElementById('modal-close').addEventListener('click', () => {
+    document.getElementById('preset-modal').classList.add('hidden');
+  });
+  document.getElementById('btn-confirm-save').addEventListener('click', savePreset);
+
+  document.getElementById('btn-load-preset').addEventListener('click', loadPreset);
+
+  // Drag & drop canvas (emoji)
+  canvas.addEventListener('click', e => {
+    if (!state.emoji.char) return;
+    const container = document.getElementById('canvas-container');
+    const zoom = computeZoom();
+    const rect = container.getBoundingClientRect();
+    const cx = (e.clientX - rect.left) / zoom;
+    const cy = (e.clientY - rect.top)  / zoom;
+    state.emoji.x = Math.round((cx / state.canvas.w) * 100);
+    state.emoji.y = Math.round((cy / state.canvas.h) * 100);
+    document.getElementById('emoji-x').value = state.emoji.x;
+    document.getElementById('emoji-x-val').textContent = state.emoji.x + '%';
+    document.getElementById('emoji-y').value = state.emoji.y;
+    document.getElementById('emoji-y-val').textContent = state.emoji.y + '%';
+    render();
+  });
+}
+
+// ---- Helper : bind slider input ----
+function sliderBind(id, setter) {
+  const input = document.getElementById(id);
+  const valEl = document.getElementById(id + '-val');
+  input.addEventListener('input', e => {
+    const display = setter(e.target.value);
+    if (valEl) valEl.textContent = display;
+    render();
+  });
+}
+
+// ============================================================
+// RANDOMIZE
+// ============================================================
+const RAND_EMOJIS = ['🌟','🎯','🚀','💡','🎉','❤️','⚡','🔥','🌈','✦','◈','⬟'];
+const RAND_PATS   = ['none','lines','grid','dots','waves','none','none'];
+function randomize() {
+  // BG gradient aléatoire
+  state.bg.type = 'gradient';
+  state.bg.grad.c1  = randomColor();
+  state.bg.grad.c2  = randomColor();
+  state.bg.grad.c3  = randomColor();
+  state.bg.grad.use3 = Math.random() > 0.5;
+  state.bg.grad.angle = Math.floor(Math.random() * 360);
+
+  // Pattern
+  state.pattern.type    = RAND_PATS[Math.floor(Math.random() * RAND_PATS.length)];
+  state.pattern.color   = Math.random() > 0.5 ? '#ffffff' : '#000000';
+  state.pattern.opacity = parseFloat((Math.random() * 0.2).toFixed(2));
+  state.pattern.size    = Math.floor(Math.random() * 60) + 20;
+  state.pattern.rotation = Math.floor(Math.random() * 360);
+
+  // Emoji
+  state.emoji.char    = Math.random() > 0.3 ? RAND_EMOJIS[Math.floor(Math.random() * RAND_EMOJIS.length)] : '';
+  state.emoji.size    = Math.floor(Math.random() * 300) + 100;
+  state.emoji.opacity = parseFloat((Math.random() * 0.5 + 0.1).toFixed(2));
+  state.emoji.x = 50; state.emoji.y = 50;
+
+  // Border
+  state.border.enabled  = Math.random() > 0.5;
+  state.border.color    = '#ffffff';
+  state.border.width    = Math.floor(Math.random() * 16) + 2;
+  state.border.opacity  = parseFloat((Math.random() * 0.6 + 0.4).toFixed(2));
+  state.border.offset   = Math.floor(Math.random() * 40) + 10;
+
+  syncUIFromState();
+  render();
+  showToast('Background aléatoire généré ✨');
+}
+
+function randomColor() {
+  const hue = Math.floor(Math.random() * 360);
+  const sat = Math.floor(Math.random() * 40) + 50;
+  const lit = Math.floor(Math.random() * 40) + 20;
+  return hslToHex(hue, sat, lit);
+}
+function hslToHex(h, s, l) {
+  s /= 100; l /= 100;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => {
+    const k = (n + h / 30) % 12;
+    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+// ============================================================
+// PRESETS JSON
+// ============================================================
+function savePreset() {
+  const name = document.getElementById('preset-name').value.trim() || 'preset';
+  const data = JSON.parse(JSON.stringify(state));
+  delete data.logo.img; // can't serialize HTMLImageElement
+
+  const existing = JSON.parse(localStorage.getItem('bgmaker_presets') || '{}');
+  existing[name] = data;
+  localStorage.setItem('bgmaker_presets', JSON.stringify(existing));
+
+  document.getElementById('preset-modal').classList.add('hidden');
+  showToast(`Preset "${name}" sauvegardé ✓`);
+}
+
+function loadPreset() {
+  const existing = JSON.parse(localStorage.getItem('bgmaker_presets') || '{}');
+  const names = Object.keys(existing);
+  if (names.length === 0) { showToast('Aucun preset sauvegardé'); return; }
+
+  // Petit menu rapide via prompt
+  const choice = prompt(`Presets disponibles :\n${names.join(', ')}\n\nNom du preset à charger :`);
+  if (!choice || !existing[choice]) { showToast('Preset introuvable'); return; }
+
+  const data = existing[choice];
+  Object.assign(state.canvas,  data.canvas);
+  Object.assign(state.bg,      data.bg);
+  Object.assign(state.bg.grad, data.bg.grad);
+  Object.assign(state.pattern, data.pattern);
+  Object.assign(state.emoji,   data.emoji);
+  Object.assign(state.border,  data.border);
+  // Logo non restauré (binaire)
+  syncUIFromState();
+  render();
+  showToast(`Preset "${choice}" chargé ✓`);
+}
+
+// ============================================================
+// TOAST
+// ============================================================
+let toastTimer;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+function init() {
+  bindEvents();
+
+  // Charger preset "moderne" par défaut
+  applyStylePreset('moderne');
+
+  // Render initial
+  render();
+
+  showToast('BGMaker prêt — cliquez sur le canvas pour repositionner l\'emoji');
+}
+
+document.addEventListener('DOMContentLoaded', init);
+
+</script>
+</body>
+</html>
