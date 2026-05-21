@@ -1,0 +1,1948 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-fullscreen">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;OSC Controller&quot;,&quot;short_name&quot;:&quot;OSC&quot;,&quot;display&quot;:&quot;fullscreen&quot;,&quot;orientation&quot;:&quot;landscape&quot;,&quot;background_color&quot;:&quot;%230f0f11&quot;,&quot;theme_color&quot;:&quot;%230f0f11&quot;}">
+<title>OSC Controller</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & Base ─────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --admin-bg: #0f0f11;
+  --admin-surface: #18181c;
+  --admin-border: #2a2a32;
+  --admin-accent: #e8ff47;
+  --admin-accent2: #47c8ff;
+  --admin-text: #f0f0f0;
+  --admin-muted: #666;
+  --admin-danger: #ff4747;
+  --grid-size: 40px;
+  --snap: 40px;
+}
+html, body { height: 100%; overflow: hidden; font-family: 'DM Mono', monospace; }
+
+/* Force landscape + fullscreen en mode play */
+@media (orientation: portrait) {
+  #view-play .play-rotate-msg {
+    display: flex !important;
+  }
+  #view-play .play-canvas,
+  #view-play #play-topbar {
+    display: none !important;
+  }
+}
+.play-rotate-msg {
+  display: none;
+  position: fixed; inset: 0; z-index: 9999;
+  background: #0f0f11;
+  align-items: center; justify-content: center;
+  flex-direction: column; gap: 16px;
+  color: #f0f0f0; font-size: 1rem; text-align: center;
+}
+.play-rotate-msg svg { font-size: 3rem; }
+body { background: var(--admin-bg); color: var(--admin-text); }
+
+/* ── Views ────────────────────────────────────────────────────── */
+.view { display: none; width: 100%; height: 100vh; }
+.view.active { display: flex; }
+
+/* ══════════════════════════════════════════════════════════════ */
+/* LOGIN                                                          */
+/* ══════════════════════════════════════════════════════════════ */
+#view-login {
+  align-items: center; justify-content: center;
+  background: var(--admin-bg);
+  flex-direction: column; gap: 2rem;
+}
+.login-box {
+  display: flex; flex-direction: column; gap: 1rem;
+  width: min(360px, 90vw);
+}
+.login-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 2rem; font-weight: 800;
+  color: var(--admin-accent);
+  letter-spacing: -0.03em;
+  text-align: center;
+  margin-bottom: .5rem;
+}
+.login-sub {
+  text-align: center; color: var(--admin-muted);
+  font-size: .75rem; margin-bottom: .5rem;
+}
+.login-box input[type=password] {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  color: var(--admin-text);
+  padding: .75rem 1rem;
+  font-family: 'DM Mono', monospace;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color .2s;
+  width: 100%;
+}
+.login-box input[type=password]:focus { border-color: var(--admin-accent); }
+.btn-primary {
+  background: var(--admin-accent);
+  color: #000;
+  border: none;
+  padding: .75rem 1.5rem;
+  font-family: 'Syne', sans-serif;
+  font-weight: 700; font-size: .95rem;
+  cursor: pointer;
+  transition: opacity .15s, transform .1s;
+  width: 100%;
+}
+.btn-primary:hover { opacity: .85; }
+.btn-primary:active { transform: scale(.97); }
+.login-error {
+  color: var(--admin-danger);
+  font-size: .8rem; text-align: center;
+  min-height: 1.2em;
+}
+.login-change-pwd {
+  color: var(--admin-muted); font-size: .72rem;
+  text-align: center; cursor: pointer;
+  text-decoration: underline;
+}
+
+/* ══════════════════════════════════════════════════════════════ */
+/* ADMIN                                                          */
+/* ══════════════════════════════════════════════════════════════ */
+#view-admin {
+  flex-direction: column;
+  background: var(--admin-bg);
+  height: 100vh; overflow: hidden;
+}
+
+/* Top bar */
+.admin-topbar {
+  display: flex; align-items: center; gap: 1rem;
+  padding: .6rem 1rem;
+  background: var(--admin-surface);
+  border-bottom: 1px solid var(--admin-border);
+  flex-shrink: 0; flex-wrap: wrap;
+}
+.topbar-title {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800; font-size: 1.1rem;
+  color: var(--admin-accent);
+  letter-spacing: -.02em;
+  margin-right: .5rem;
+}
+.topbar-sep { width: 1px; height: 24px; background: var(--admin-border); flex-shrink: 0; }
+
+/* Page tabs */
+.page-tabs { display: flex; gap: .35rem; align-items: center; flex-wrap: wrap; }
+.page-tab {
+  padding: .35rem .75rem;
+  border: 1px solid var(--admin-border);
+  background: transparent;
+  color: var(--admin-muted);
+  font-family: 'DM Mono', monospace;
+  font-size: .78rem;
+  cursor: pointer; transition: all .15s;
+  position: relative;
+}
+.page-tab.active {
+  background: var(--admin-accent);
+  color: #000; border-color: var(--admin-accent);
+  font-weight: 500;
+}
+.page-tab .tab-del {
+  display: none; position: absolute; top: -6px; right: -6px;
+  width: 14px; height: 14px; background: var(--admin-danger);
+  color: #fff; font-size: 9px; align-items: center; justify-content: center;
+  border-radius: 50%; cursor: pointer; line-height: 1;
+}
+.page-tab:hover .tab-del { display: flex; }
+.btn-icon {
+  background: transparent; border: 1px solid var(--admin-border);
+  color: var(--admin-muted); padding: .35rem .6rem;
+  cursor: pointer; font-size: .85rem;
+  transition: all .15s; font-family: 'DM Mono', monospace;
+}
+.btn-icon:hover { border-color: var(--admin-accent); color: var(--admin-accent); }
+
+/* Bridge status */
+.bridge-status {
+  margin-left: auto; display: flex; align-items: center; gap: .5rem;
+  font-size: .75rem;
+}
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--admin-danger);
+  transition: background .3s;
+}
+.status-dot.connected { background: #47ff8a; }
+.bridge-url-input {
+  background: transparent; border: 1px solid var(--admin-border);
+  color: var(--admin-muted); padding: .25rem .5rem;
+  font-family: 'DM Mono', monospace; font-size: .72rem;
+  width: 180px; outline: none;
+}
+.bridge-url-input:focus { border-color: var(--admin-accent2); }
+.btn-connect {
+  background: transparent; border: 1px solid var(--admin-border);
+  color: var(--admin-muted); padding: .25rem .6rem;
+  font-family: 'DM Mono', monospace; font-size: .72rem;
+  cursor: pointer; transition: all .15s;
+}
+.btn-connect:hover { border-color: var(--admin-accent2); color: var(--admin-accent2); }
+
+/* Admin body */
+.admin-body {
+  display: flex; flex: 1; overflow: hidden;
+}
+
+/* Sidebar */
+.admin-sidebar {
+  width: 220px; flex-shrink: 0;
+  background: var(--admin-surface);
+  border-right: 1px solid var(--admin-border);
+  display: flex; flex-direction: column;
+  overflow-y: auto;
+}
+.sidebar-section { padding: .75rem; border-bottom: 1px solid var(--admin-border); }
+.sidebar-label {
+  font-size: .65rem; color: var(--admin-muted);
+  text-transform: uppercase; letter-spacing: .1em;
+  margin-bottom: .5rem;
+}
+
+/* Widget palette */
+.widget-palette { display: flex; flex-direction: column; gap: .35rem; }
+.palette-item {
+  display: flex; align-items: center; gap: .6rem;
+  padding: .5rem .6rem;
+  border: 1px solid var(--admin-border);
+  cursor: grab; transition: all .15s;
+  font-size: .8rem; color: var(--admin-text);
+  user-select: none;
+}
+.palette-item:hover { border-color: var(--admin-accent); color: var(--admin-accent); }
+.palette-item:active { cursor: grabbing; }
+.palette-icon { font-size: 1.1rem; width: 20px; text-align: center; }
+
+/* Background settings */
+.bg-presets { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .6rem; }
+.bg-preset {
+  width: 28px; height: 28px; cursor: pointer;
+  border: 2px solid transparent; transition: border-color .15s;
+}
+.bg-preset.selected, .bg-preset:hover { border-color: var(--admin-accent); }
+.bg-rgb { display: flex; gap: .3rem; margin-bottom: .5rem; }
+.bg-rgb input[type=number] {
+  background: var(--admin-bg); border: 1px solid var(--admin-border);
+  color: var(--admin-text); padding: .3rem .4rem;
+  font-family: 'DM Mono', monospace; font-size: .75rem;
+  width: 52px; outline: none; text-align: center;
+}
+.bg-rgb input:focus { border-color: var(--admin-accent); }
+.bg-rgb-label { font-size: .65rem; color: var(--admin-muted); text-align: center; }
+.bg-image-btn {
+  width: 100%; background: transparent; border: 1px dashed var(--admin-border);
+  color: var(--admin-muted); padding: .4rem; cursor: pointer;
+  font-family: 'DM Mono', monospace; font-size: .72rem; transition: all .15s;
+}
+.bg-image-btn:hover { border-color: var(--admin-accent2); color: var(--admin-accent2); }
+.bg-resolution {
+  margin-top: .5rem; font-size: .7rem; color: var(--admin-muted);
+}
+.bg-resolution select {
+  background: var(--admin-bg); border: 1px solid var(--admin-border);
+  color: var(--admin-text); padding: .2rem .4rem;
+  font-family: 'DM Mono', monospace; font-size: .7rem;
+  outline: none; width: 100%; margin-top: .25rem;
+}
+
+/* Widget inspector */
+.inspector { padding: .75rem; flex: 1; }
+.inspector-empty { color: var(--admin-muted); font-size: .75rem; }
+.inspector-field { margin-bottom: .6rem; }
+.inspector-field label {
+  display: block; font-size: .65rem; color: var(--admin-muted);
+  text-transform: uppercase; letter-spacing: .08em; margin-bottom: .25rem;
+}
+.inspector-field input[type=text],
+.inspector-field input[type=number],
+.inspector-field input[type=color],
+.inspector-field select {
+  width: 100%; background: var(--admin-bg); border: 1px solid var(--admin-border);
+  color: var(--admin-text); padding: .35rem .5rem;
+  font-family: 'DM Mono', monospace; font-size: .8rem; outline: none;
+  transition: border-color .15s;
+}
+.inspector-field input:focus, .inspector-field select:focus { border-color: var(--admin-accent); }
+.inspector-field input[type=color] { height: 32px; padding: 2px 4px; cursor: pointer; }
+.btn-danger {
+  background: transparent; border: 1px solid var(--admin-danger);
+  color: var(--admin-danger); padding: .4rem .8rem;
+  cursor: pointer; font-family: 'DM Mono', monospace;
+  font-size: .78rem; width: 100%; transition: all .15s; margin-top: .5rem;
+}
+.btn-danger:hover { background: var(--admin-danger); color: #fff; }
+
+/* Canvas area */
+.admin-canvas-wrap {
+  flex: 1; overflow: auto; position: relative;
+  background:
+    linear-gradient(var(--admin-border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--admin-border) 1px, transparent 1px);
+  background-size: var(--grid-size) var(--grid-size);
+  background-color: #0a0a0c;
+}
+.admin-canvas {
+  position: relative;
+  min-width: 100%; min-height: 100%;
+  width: 100%; height: 100%;
+}
+
+/* Play bar */
+.admin-playbar {
+  display: flex; align-items: center; gap: .75rem;
+  padding: .5rem 1rem;
+  background: var(--admin-surface);
+  border-top: 1px solid var(--admin-border);
+  flex-shrink: 0;
+}
+.playbar-info { font-size: .72rem; color: var(--admin-muted); margin-right: auto; }
+.btn-play {
+  background: var(--admin-accent);
+  color: #000; border: none;
+  padding: .5rem 1.5rem;
+  font-family: 'Syne', sans-serif; font-weight: 700; font-size: .85rem;
+  cursor: pointer; transition: opacity .15s;
+  display: flex; align-items: center; gap: .5rem;
+}
+.btn-play:hover { opacity: .85; }
+.btn-play-player {
+  background: var(--admin-accent2);
+  color: #000; border: none;
+  padding: .5rem 1.25rem;
+  font-family: 'Syne', sans-serif; font-weight: 700; font-size: .85rem;
+  cursor: pointer; transition: opacity .15s;
+}
+.btn-play-player:hover { opacity: .85; }
+
+/* ══════════════════════════════════════════════════════════════ */
+/* PLAY VIEW                                                      */
+/* ══════════════════════════════════════════════════════════════ */
+#view-play {
+  position: relative;
+  overflow: hidden;
+  flex-direction: column;
+}
+.play-canvas {
+  position: relative;
+  width: 100%; height: 100%;
+  overflow: hidden;
+}
+.play-topbar {
+  position: absolute; top: 0; left: 0; right: 0;
+  display: flex; align-items: center; gap: .75rem;
+  padding: .4rem .75rem;
+  background: rgba(0,0,0,.6);
+  backdrop-filter: blur(8px);
+  z-index: 100;
+  font-size: .72rem; color: rgba(255,255,255,.5);
+  transition: opacity .3s;
+}
+.play-topbar.hidden { opacity: 0; pointer-events: none; }
+.play-page-name {
+  font-family: 'Syne', sans-serif; font-weight: 700;
+  font-size: .85rem; color: rgba(255,255,255,.8);
+}
+.play-status-dot { width: 7px; height: 7px; border-radius: 50%; background: #ff4747; flex-shrink: 0; }
+.play-status-dot.connected { background: #47ff8a; }
+.btn-back {
+  margin-left: auto;
+  background: transparent; border: 1px solid rgba(255,255,255,.2);
+  color: rgba(255,255,255,.5); padding: .25rem .6rem;
+  font-family: 'DM Mono', monospace; font-size: .7rem;
+  cursor: pointer; transition: all .15s;
+}
+.btn-back:hover { border-color: rgba(255,255,255,.5); color: #fff; }
+.play-hide-ui-hint {
+  position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+  font-size: .65rem; color: rgba(255,255,255,.25);
+  pointer-events: none; z-index: 100;
+  font-family: 'DM Mono', monospace;
+}
+
+/* ══════════════════════════════════════════════════════════════ */
+/* WIDGETS — EDITOR LAYER                                         */
+/* ══════════════════════════════════════════════════════════════ */
+.widget-el {
+  position: absolute;
+  cursor: move;
+  user-select: none;
+  touch-action: none;
+}
+.widget-el.selected::after {
+  content: '';
+  position: absolute; inset: -3px;
+  border: 2px solid var(--admin-accent);
+  pointer-events: none;
+  z-index: 10;
+}
+.widget-el .widget-label-tag {
+  position: absolute; top: -18px; left: 0;
+  font-size: 9px; color: var(--admin-accent);
+  white-space: nowrap; font-family: 'DM Mono', monospace;
+  pointer-events: none;
+}
+
+/* ── Button widget ── */
+.w-button {
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Syne', sans-serif; font-weight: 700;
+  font-size: 1rem; cursor: pointer;
+  transition: box-shadow .08s, transform .08s, filter .08s;
+  border: none; outline: none;
+  position: relative;
+  width: 100%; height: 100%;
+  background-size: cover; background-position: center; background-repeat: no-repeat;
+  overflow: hidden;
+}
+.w-button.relief {
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.22) inset,
+    0 -2px 0 rgba(0,0,0,.4) inset,
+    0 6px 0 rgba(0,0,0,.38),
+    0 8px 14px rgba(0,0,0,.5);
+}
+.w-button.relief.pressed, .w-button.relief:active {
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.10) inset,
+    0 -1px 0 rgba(0,0,0,.2) inset,
+    0 2px 0 rgba(0,0,0,.35),
+    0 3px 6px rgba(0,0,0,.4);
+  transform: translateY(4px);
+}
+.w-button:not(.relief).pressed, .w-button:not(.relief):active {
+  filter: brightness(1.3);
+  transform: scale(.94);
+}
+
+/* ── Toggle widget ── */
+.w-toggle-wrap {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 100%;
+}
+.w-toggle {
+  position: relative;
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Syne', sans-serif; font-weight: 700;
+  font-size: .9rem; cursor: pointer;
+  transition: filter .15s;
+  border: none; outline: none;
+}
+.w-toggle.on { filter: brightness(1.25); }
+.w-toggle .toggle-indicator {
+  position: absolute; bottom: 6px; right: 8px;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: rgba(0,0,0,.4);
+  transition: background .2s;
+}
+.w-toggle.on .toggle-indicator { background: rgba(255,255,255,.8); }
+
+/* ── D-pad widget ── */
+.w-dpad {
+  position: relative; width: 100%; height: 100%;
+}
+.w-dpad .dpad-btn {
+  position: absolute;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem; cursor: pointer;
+  transition: filter .1s, transform .08s;
+  border: none; outline: none;
+  user-select: none;
+}
+.w-dpad .dpad-btn:active, .w-dpad .dpad-btn.pressed {
+  filter: brightness(1.4);
+  transform: scale(.9);
+}
+/* D-pad layout: cross */
+.w-dpad .dpad-up    { top: 0;    left: 33.33%; width: 33.33%; height: 33.33%; }
+.w-dpad .dpad-down  { bottom: 0; left: 33.33%; width: 33.33%; height: 33.33%; }
+.w-dpad .dpad-left  { top: 33.33%; left: 0;    width: 33.33%; height: 33.33%; }
+.w-dpad .dpad-right { top: 33.33%; right: 0;   width: 33.33%; height: 33.33%; }
+.w-dpad .dpad-center {
+  top: 33.33%; left: 33.33%; width: 33.33%; height: 33.33%;
+  background: rgba(0,0,0,.2);
+}
+
+/* Resize handle */
+.resize-handle {
+  position: absolute; bottom: 0; right: 0;
+  width: 14px; height: 14px;
+  cursor: se-resize;
+  z-index: 20;
+}
+.resize-handle::after {
+  content: '';
+  position: absolute; bottom: 3px; right: 3px;
+  width: 6px; height: 6px;
+  border-bottom: 2px solid var(--admin-accent);
+  border-right: 2px solid var(--admin-accent);
+}
+
+/* ══════════════════════════════════════════════════════════════ */
+/* MODAL                                                          */
+/* ══════════════════════════════════════════════════════════════ */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.75);
+  z-index: 1000;
+  align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal-box {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  padding: 1.5rem; width: min(400px, 90vw);
+  display: flex; flex-direction: column; gap: .75rem;
+}
+.modal-title {
+  font-family: 'Syne', sans-serif; font-weight: 700;
+  font-size: 1.1rem; color: var(--admin-accent);
+}
+.modal-box input[type=text], .modal-box input[type=password] {
+  background: var(--admin-bg); border: 1px solid var(--admin-border);
+  color: var(--admin-text); padding: .5rem .75rem;
+  font-family: 'DM Mono', monospace; font-size: .9rem;
+  outline: none; width: 100%;
+}
+.modal-box input:focus { border-color: var(--admin-accent); }
+.modal-actions { display: flex; gap: .5rem; justify-content: flex-end; }
+.btn-secondary {
+  background: transparent; border: 1px solid var(--admin-border);
+  color: var(--admin-muted); padding: .4rem .9rem;
+  font-family: 'DM Mono', monospace; font-size: .8rem;
+  cursor: pointer; transition: all .15s;
+}
+.btn-secondary:hover { border-color: var(--admin-text); color: var(--admin-text); }
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN ══════════════════════════════════════════════════ -->
+<div id="view-login" class="view active">
+  <div class="login-box">
+    <div class="login-title">OSC Controller</div>
+    <div class="login-sub">Accès administrateur</div>
+    <input type="password" id="login-pwd" placeholder="Mot de passe" autocomplete="current-password">
+    <button class="btn-primary" onclick="App.login()">Accéder →</button>
+    <div class="login-error" id="login-error"></div>
+    <div class="login-change-pwd" onclick="App.showChangePwd()">Changer le mot de passe</div>
+  </div>
+</div>
+
+<!-- ══ ADMIN ══════════════════════════════════════════════════ -->
+<div id="view-admin" class="view">
+  <!-- Top bar -->
+  <div class="admin-topbar">
+    <span class="topbar-title">OSC ctrl</span>
+    <div class="topbar-sep"></div>
+
+    <!-- Page tabs -->
+    <div class="page-tabs" id="page-tabs"></div>
+    <button class="btn-icon" onclick="App.newPage()" title="Nouvelle page">＋ Page</button>
+
+    <div class="topbar-sep"></div>
+
+    <!-- Bridge connection -->
+    <div class="bridge-status">
+      <div class="status-dot" id="admin-status-dot"></div>
+      <input class="bridge-url-input" id="bridge-url" value="ws://localhost:8080" placeholder="ws://...">
+      <button class="btn-connect" onclick="App.connectBridge()">Connecter</button>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="admin-body">
+    <!-- Sidebar -->
+    <div class="admin-sidebar">
+      <!-- Widget palette -->
+      <div class="sidebar-section">
+        <div class="sidebar-label">Widgets</div>
+        <div class="widget-palette">
+          <div class="palette-item" draggable="true" data-type="button">
+            <span class="palette-icon">⬛</span> Bouton
+          </div>
+          <div class="palette-item" draggable="true" data-type="toggle">
+            <span class="palette-icon">◐</span> Toggle
+          </div>
+          <div class="palette-item" draggable="true" data-type="dpad">
+            <span class="palette-icon">✛</span> D-pad
+          </div>
+          <div class="palette-item" draggable="true" data-type="zone">
+            <span class="palette-icon">⬚</span> Zone invisible
+          </div>
+        </div>
+      </div>
+
+      <!-- Background -->
+      <div class="sidebar-section">
+        <div class="sidebar-label">Fond de page</div>
+        <div class="bg-presets" id="bg-presets"></div>
+        <div class="bg-rgb">
+          <div>
+            <input type="number" id="bg-r" min="0" max="255" value="20" oninput="App.applyRGB()">
+            <div class="bg-rgb-label">R</div>
+          </div>
+          <div>
+            <input type="number" id="bg-g" min="0" max="255" value="20" oninput="App.applyRGB()">
+            <div class="bg-rgb-label">G</div>
+          </div>
+          <div>
+            <input type="number" id="bg-b" min="0" max="255" value="24" oninput="App.applyRGB()">
+            <div class="bg-rgb-label">B</div>
+          </div>
+        </div>
+        <button class="bg-image-btn" onclick="App.pickBgImage()">📁 Image de fond…</button>
+        <!-- BG transform (shown when image loaded) -->
+        <div id="bg-transform-section" style="display:none;margin-top:10px;display:none;">
+          <div style="margin-bottom:6px;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+              <label style="font-size:.7rem;color:var(--admin-muted);">Zoom image</label>
+              <span id="bg-scale-val" style="font-size:.7rem;color:var(--admin-accent);">100%</span>
+            </div>
+            <input type="range" id="bg-scale" min="10" max="300" value="100" step="1" style="width:100%;accent-color:var(--admin-accent);" oninput="App.setBgTransform()">
+          </div>
+          <div style="margin-bottom:6px;">
+            <label style="font-size:.7rem;color:var(--admin-muted);">Position X</label>
+            <input type="range" id="bg-posx" min="0" max="100" value="50" step="1" style="width:100%;accent-color:var(--admin-accent);" oninput="App.setBgTransform()">
+          </div>
+          <div>
+            <label style="font-size:.7rem;color:var(--admin-muted);">Position Y</label>
+            <input type="range" id="bg-posy" min="0" max="100" value="50" step="1" style="width:100%;accent-color:var(--admin-accent);" oninput="App.setBgTransform()">
+          </div>
+        </div>
+        <!-- Scene resolution -->
+        <div style="margin-top:10px;">
+          <label style="font-size:.7rem;color:var(--admin-muted);display:block;margin-bottom:4px;">Résolution scène</label>
+          <div style="display:flex;gap:4px;align-items:center;">
+            <input type="number" id="scene-w" value="1280" min="100" max="3840" style="width:64px;background:var(--admin-surface);border:1px solid var(--admin-border);color:var(--admin-text);font-family:inherit;font-size:.72rem;padding:3px 5px;border-radius:4px;" oninput="App.setSceneDim()">
+            <span style="color:var(--admin-muted);font-size:.75rem;">×</span>
+            <input type="number" id="scene-h" value="720" min="100" max="2160" style="width:64px;background:var(--admin-surface);border:1px solid var(--admin-border);color:var(--admin-text);font-family:inherit;font-size:.72rem;padding:3px 5px;border-radius:4px;" oninput="App.setSceneDim()">
+          </div>
+          <div style="display:flex;gap:4px;margin-top:5px;flex-wrap:wrap;">
+            <button class="btn-small" onclick="App.setScenePreset(1280,720)" style="font-size:.62rem;padding:2px 5px;">1280×720</button>
+            <button class="btn-small" onclick="App.setScenePreset(1920,1080)" style="font-size:.62rem;padding:2px 5px;">1920×1080</button>
+            <button class="btn-small" onclick="App.setScenePreset(844,390)" style="font-size:.62rem;padding:2px 5px;">Landscape</button>
+          </div>
+        </div>
+        <input type="file" id="bg-image-input" accept="image/*" style="display:none" onchange="App.loadBgImage(event)">
+        <div class="bg-resolution">
+          <div>Ratio cible</div>
+          <select id="bg-ratio" onchange="App.applyRatio()">
+            <option value="">Libre</option>
+            <option value="16/9">16:9 (paysage)</option>
+            <option value="9/16">9:16 (portrait)</option>
+            <option value="4/3">4:3</option>
+            <option value="1/1">1:1</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Inspector -->
+      <div class="inspector" id="inspector">
+        <div class="inspector-empty">← Sélectionner un widget</div>
+      </div>
+    </div>
+
+    <!-- Canvas -->
+    <div class="admin-canvas-wrap" id="admin-canvas-wrap">
+      <div class="admin-canvas" id="admin-canvas"></div>
+    </div>
+  </div>
+
+  <!-- Play bar -->
+  <div class="admin-playbar">
+    <span class="playbar-info" id="playbar-info">0 widgets</span>
+    <button class="btn-play-player" onclick="App.openPlayerPage()">🎮 Page manette</button>
+    <button class="btn-play" onclick="App.openPlay()">▶ Tester</button>
+  </div>
+</div>
+
+<!-- ══ PLAY ═══════════════════════════════════════════════════ -->
+<div id="view-play" class="view">
+  <div class="play-rotate-msg">
+  <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#e8ff47" stroke-width="1.5">
+    <rect x="4" y="2" width="16" height="20" rx="2"/>
+    <path d="M8 22h8M12 18v0"/>
+  </svg>
+  <div>Tourne ton téléphone<br>en mode paysage</div>
+</div>
+<div class="play-canvas" id="play-canvas">
+    <div class="play-topbar" id="play-topbar">
+      <div class="play-status-dot" id="play-status-dot"></div>
+      <span class="play-page-name" id="play-page-name">—</span>
+      <span id="play-bridge-url-label" style="font-size:.68rem;opacity:.5"></span>
+      <button class="btn-back" onclick="App.closePlay()">✕ Admin</button>
+    </div>
+    <!-- widgets rendered here -->
+    <div class="play-hide-ui-hint">Tap pour masquer l'interface</div>
+  </div>
+</div>
+
+<!-- ══ MODALS ══════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-newpage">
+  <div class="modal-box">
+    <div class="modal-title">Nouvelle page</div>
+    <input type="text" id="newpage-name" placeholder="Nom de la page…" maxlength="30">
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="App.closeModal('modal-newpage')">Annuler</button>
+      <button class="btn-primary" onclick="App.confirmNewPage()" style="width:auto;padding:.4rem 1rem">Créer</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-changepwd">
+  <div class="modal-box">
+    <div class="modal-title">Changer le mot de passe</div>
+    <input type="password" id="pwd-current" placeholder="Mot de passe actuel">
+    <input type="password" id="pwd-new" placeholder="Nouveau mot de passe">
+    <input type="password" id="pwd-confirm" placeholder="Confirmer">
+    <div class="login-error" id="pwd-error"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="App.closeModal('modal-changepwd')">Annuler</button>
+      <button class="btn-primary" onclick="App.confirmChangePwd()" style="width:auto;padding:.4rem 1rem">Changer</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-playerpage">
+  <div class="modal-box" style="max-width:320px;text-align:center;">
+    <div class="modal-title">QR Code manette</div>
+    <p style="font-size:.78rem;color:var(--admin-muted);line-height:1.5;margin-bottom:8px;">
+      Scannez pour ouvrir la manette directement,<br>sans login ni accès à l'éditeur.
+    </p>
+    <input type="text" id="player-bridge-url" placeholder="ws://localhost:8080" oninput="App._refreshQR()" style="margin-bottom:12px;">
+    <div id="player-qr-img" style="margin:0 auto 10px;display:flex;align-items:center;justify-content:center;min-height:100px;"></div>
+    <a id="player-qr-url" href="#" target="_blank" rel="noopener"
+      style="font-size:9px;color:var(--admin-muted);word-break:break-all;display:block;padding:0 4px;line-height:1.5;text-decoration:none;margin-bottom:12px;"></a>
+    <div class="modal-actions" style="justify-content:center;">
+      <button class="btn-secondary" onclick="App.closeModal('modal-playerpage')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   OSC CONTROLLER — App Core
+   ═══════════════════════════════════════════════════════════════ */
+
+const STORAGE_KEY = 'osc_ctrl_v1';
+const DEFAULT_PWD = 'osc2024';
+const SNAP = 40;
+
+const BG_PRESETS = [
+  '#141414','#1a1a2e','#0d1b2a','#1e1e1e',
+  '#2d1b33','#0a2010','#2a1500','#ffffff',
+  '#f0ede8','#1c3a5e','#3d0000','#003d3d',
+];
+
+/* ── State ────────────────────────────────────────────────────── */
+let state = {
+  pwd: DEFAULT_PWD,
+  currentPage: null,
+  pages: {},
+  bridgeUrl: 'ws://localhost:8080',
+};
+let selectedWidgetId = null;
+let ws = null;
+let wsConnected = false;
+let dragState = null;
+let resizeState = null;
+let uiHidden = false;
+
+/* ── Persistence ─────────────────────────────────────────────── */
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  syncPageToBridge();
+}
+
+function syncPageToBridge() {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  const p = state.pages[state.currentPage];
+  if (!p) return;
+  ws.send(JSON.stringify({ type: "storePage", pageId: state.currentPage, page: p }));
+}
+function load() {
+  try {
+    const s = localStorage.getItem(STORAGE_KEY);
+    if (s) state = { ...state, ...JSON.parse(s) };
+  } catch {}
+}
+
+/* ── ID gen ──────────────────────────────────────────────────── */
+let _id = 0;
+function uid() { return 'w' + Date.now() + (++_id); }
+
+/* ── Default widget data ─────────────────────────────────────── */
+function defaultWidget(type, x, y) {
+  const base = { id: uid(), type, x, y, label: '', color: '#e8ff47', textColor: '#000000' };
+  if (type === 'button') return { ...base, label: 'JUMP', w: 120, h: 80, osc: '/button/action' };
+  if (type === 'toggle') return { ...base, label: 'ON', w: 120, h: 80, osc: '/toggle/state' };
+  if (type === 'dpad')   return { ...base, w: 180, h: 180, osc: '/dpad' };
+  if (type === 'zone')   return { ...base, label: 'Zone', w: 120, h: 80, osc: '/zone/action', shape: 'rect', radius: 0, strokeColor: 'rgba(255,200,0,0.7)', strokeWidth: 2, transparent: false };
+  return base;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   APP OBJECT
+   ═══════════════════════════════════════════════════════════════ */
+const App = {
+
+  /* ── Boot ─────────────────────────────────────────────────── */
+  init() {
+    load();
+    this.renderBgPresets();
+    // Enter key on login
+    document.getElementById('login-pwd').addEventListener('keydown', e => {
+      if (e.key === 'Enter') this.login();
+    });
+    document.getElementById('newpage-name').addEventListener('keydown', e => {
+      if (e.key === 'Enter') this.confirmNewPage();
+    });
+    // Setup palette drag
+    document.querySelectorAll('.palette-item').forEach(el => {
+      el.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('widget-type', el.dataset.type);
+      });
+    });
+    // Setup canvas drop
+    const canvas = document.getElementById('admin-canvas');
+    canvas.addEventListener('dragover', e => e.preventDefault());
+    canvas.addEventListener('drop', e => {
+      e.preventDefault();
+      const type = e.dataTransfer.getData('widget-type');
+      if (!type) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = snap(e.clientX - rect.left);
+      const y = snap(e.clientY - rect.top);
+      this.addWidget(type, x, y);
+    });
+    // Click canvas deselects
+    canvas.addEventListener('mousedown', e => {
+      if (e.target === canvas) this.selectWidget(null);
+    });
+    // Keyboard delete
+    document.addEventListener('keydown', e => {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedWidgetId) {
+        const tag = document.activeElement.tagName;
+        if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+        this.deleteWidget(selectedWidgetId);
+      }
+    });
+  },
+
+  /* ── Login ────────────────────────────────────────────────── */
+  login() {
+    const val = document.getElementById('login-pwd').value;
+    const err = document.getElementById('login-error');
+    if (val === state.pwd) {
+      err.textContent = '';
+      document.getElementById('login-pwd').value = '';
+      this.showAdmin();
+    } else {
+      err.textContent = 'Mot de passe incorrect';
+    }
+  },
+
+  showAdmin() {
+    showView('view-admin');
+    // Ensure at least one page
+    if (Object.keys(state.pages).length === 0) {
+      this.createPage('Main');
+    } else {
+      this.switchPage(state.currentPage || Object.keys(state.pages)[0]);
+    }
+    this.renderTabs();
+    this.connectBridge();
+    this.loadBgUI();
+  },
+
+  /* ── Password change ──────────────────────────────────────── */
+  showChangePwd() { openModal('modal-changepwd'); },
+  confirmChangePwd() {
+    const cur = document.getElementById('pwd-current').value;
+    const nw  = document.getElementById('pwd-new').value;
+    const con = document.getElementById('pwd-confirm').value;
+    const err = document.getElementById('pwd-error');
+    if (cur !== state.pwd) { err.textContent = 'Mot de passe actuel incorrect'; return; }
+    if (!nw) { err.textContent = 'Le nouveau mot de passe est vide'; return; }
+    if (nw !== con) { err.textContent = 'Les mots de passe ne correspondent pas'; return; }
+    state.pwd = nw;
+    save();
+    this.closeModal('modal-changepwd');
+    ['pwd-current','pwd-new','pwd-confirm'].forEach(id => document.getElementById(id).value = '');
+    err.textContent = '';
+  },
+
+  /* ── Pages ────────────────────────────────────────────────── */
+  newPage() {
+    document.getElementById('newpage-name').value = '';
+    openModal('modal-newpage');
+    setTimeout(() => document.getElementById('newpage-name').focus(), 100);
+  },
+  confirmNewPage() {
+    const name = document.getElementById('newpage-name').value.trim();
+    if (!name) return;
+    this.createPage(name);
+    this.closeModal('modal-newpage');
+  },
+  createPage(name) {
+    const id = uid();
+    state.pages[id] = {
+      id, name,
+      widgets: {},
+      bg: { type: 'color', r: 20, g: 20, b: 24, image: null, scale: 1, posX: 50, posY: 50 },
+      sceneW: 1280,
+      sceneH: 720,
+    };
+    save();
+    this.switchPage(id);
+    this.renderTabs();
+  },
+  deletePage(id) {
+    if (Object.keys(state.pages).length <= 1) return;
+    delete state.pages[id];
+    const next = Object.keys(state.pages)[0];
+    save();
+    this.switchPage(next);
+    this.renderTabs();
+  },
+  switchPage(id) {
+    if (!state.pages[id]) return;
+    state.currentPage = id;
+    save();
+    this.renderTabs();
+    this.renderCanvas();
+    this.loadBgUI();
+    this.selectWidget(null);
+  },
+  currentPageData() { return state.pages[state.currentPage]; },
+
+  /* ── Tabs ─────────────────────────────────────────────────── */
+  renderTabs() {
+    const container = document.getElementById('page-tabs');
+    container.innerHTML = '';
+    Object.values(state.pages).forEach(p => {
+      const tab = document.createElement('div');
+      tab.className = 'page-tab' + (p.id === state.currentPage ? ' active' : '');
+      tab.textContent = p.name;
+      tab.onclick = () => this.switchPage(p.id);
+      const del = document.createElement('span');
+      del.className = 'tab-del';
+      del.textContent = '✕';
+      del.onclick = (e) => { e.stopPropagation(); this.deletePage(p.id); };
+      tab.appendChild(del);
+      container.appendChild(tab);
+    });
+  },
+
+  /* ── Background ───────────────────────────────────────────── */
+  renderBgPresets() {
+    const container = document.getElementById('bg-presets');
+    container.innerHTML = '';
+    BG_PRESETS.forEach(color => {
+      const el = document.createElement('div');
+      el.className = 'bg-preset';
+      el.style.background = color;
+      el.title = color;
+      el.onclick = () => {
+        const r = parseInt(color.slice(1,3),16);
+        const g = parseInt(color.slice(3,5),16);
+        const b = parseInt(color.slice(5,7),16);
+        document.getElementById('bg-r').value = r;
+        document.getElementById('bg-g').value = g;
+        document.getElementById('bg-b').value = b;
+        this.applyRGB();
+        container.querySelectorAll('.bg-preset').forEach(p => p.classList.remove('selected'));
+        el.classList.add('selected');
+      };
+      container.appendChild(el);
+    });
+  },
+  setSceneDim() {
+    const p = this.currentPageData(); if (!p) return;
+    p.sceneW = parseInt(document.getElementById('scene-w').value) || 1280;
+    p.sceneH = parseInt(document.getElementById('scene-h').value) || 720;
+    save(); this.renderCanvas();
+  },
+  setScenePreset(w, h) {
+    const p = this.currentPageData(); if (!p) return;
+    p.sceneW = w; p.sceneH = h;
+    document.getElementById('scene-w').value = w;
+    document.getElementById('scene-h').value = h;
+    save(); this.renderCanvas();
+  },
+  setBgTransform() {
+    const p = this.currentPageData(); if (!p) return;
+    p.bg.scale = parseInt(document.getElementById('bg-scale').value) / 100;
+    p.bg.posX  = parseInt(document.getElementById('bg-posx').value);
+    p.bg.posY  = parseInt(document.getElementById('bg-posy').value);
+    document.getElementById('bg-scale-val').textContent = Math.round(p.bg.scale * 100) + '%';
+    save(); this.renderCanvas();
+  },
+
+  loadBgUI() {
+    const p = this.currentPageData();
+    if (!p) return;
+    const bg = p.bg;
+    document.getElementById('bg-r').value = bg.r ?? 20;
+    document.getElementById('bg-g').value = bg.g ?? 20;
+    document.getElementById('bg-b').value = bg.b ?? 24;
+    const sw = document.getElementById('scene-w'); if (sw) sw.value = p.sceneW || 1280;
+    const sh = document.getElementById('scene-h'); if (sh) sh.value = p.sceneH || 720;
+    const bsc = document.getElementById('bg-scale'); if (bsc) bsc.value = Math.round((bg.scale||1)*100);
+    const bpx = document.getElementById('bg-posx');  if (bpx) bpx.value = bg.posX !== undefined ? bg.posX : 50;
+    const bpy = document.getElementById('bg-posy');  if (bpy) bpy.value = bg.posY !== undefined ? bg.posY : 50;
+    const bsvl = document.getElementById('bg-scale-val'); if (bsvl) bsvl.textContent = Math.round((bg.scale||1)*100) + '%';
+    const trans = document.getElementById('bg-transform-section'); if (trans) trans.style.display = bg.image ? 'block' : 'none';
+    this.applyBg();
+  },
+  applyRGB() {
+    const p = this.currentPageData(); if (!p) return;
+    p.bg.r = parseInt(document.getElementById('bg-r').value) || 0;
+    p.bg.g = parseInt(document.getElementById('bg-g').value) || 0;
+    p.bg.b = parseInt(document.getElementById('bg-b').value) || 0;
+    p.bg.image = null;
+    save();
+    this.applyBg();
+  },
+  applyBg() {
+    const p = this.currentPageData(); if (!p) return;
+    const canvas = document.getElementById('admin-canvas');
+    const bg = p.bg;
+    const bgScale = bg.scale || 1;
+    const bgPosX  = bg.posX !== undefined ? bg.posX : 50;
+    const bgPosY  = bg.posY !== undefined ? bg.posY : 50;
+    if (bg.image) {
+      canvas.style.backgroundImage = `url(${bg.image})`;
+      canvas.style.backgroundSize = `${bgScale * 100}%`;
+      canvas.style.backgroundPosition = `${bgPosX}% ${bgPosY}%`;
+      canvas.style.backgroundRepeat = 'no-repeat';
+      canvas.style.backgroundColor = `rgb(${bg.r||20},${bg.g||20},${bg.b||24})`;
+    } else {
+      canvas.style.backgroundImage = '';
+      canvas.style.backgroundColor = `rgb(${bg.r||20},${bg.g||20},${bg.b||24})`;
+    }
+  },
+  applyRatio() {
+    // Visual hint only — canvas is always 100%
+  },
+  pickBgImage() { document.getElementById('bg-image-input').click(); },
+  loadBgImage(event) {
+    const file = event.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const p = this.currentPageData(); if (!p) return;
+      p.bg.image = e.target.result;
+      save();
+      this.applyBg();
+    };
+    reader.readAsDataURL(file);
+    event.target.value = '';
+  },
+
+  /* ── Widgets ──────────────────────────────────────────────── */
+  addWidget(type, x, y) {
+    const p = this.currentPageData(); if (!p) return;
+    const w = defaultWidget(type, x, y);
+    p.widgets[w.id] = w;
+    save();
+    this.renderCanvas();
+    this.selectWidget(w.id);
+  },
+  deleteWidget(id) {
+    const p = this.currentPageData(); if (!p) return;
+    delete p.widgets[id];
+    save();
+    this.selectWidget(null);
+    this.renderCanvas();
+  },
+
+  /* ── Canvas render ────────────────────────────────────────── */
+  renderCanvas() {
+    const canvas = document.getElementById('admin-canvas');
+    canvas.querySelectorAll('.widget-el, .scene-frame').forEach(el => el.remove());
+    const p = this.currentPageData(); if (!p) return;
+    this.applyBg();
+    // Scene frame
+    const frame = document.createElement('div');
+    frame.className = 'scene-frame';
+    frame.style.cssText = `position:absolute;left:0;top:0;width:${p.sceneW||1280}px;height:${p.sceneH||720}px;box-shadow:0 0 0 2px rgba(232,255,71,.3),0 0 0 9999px rgba(0,0,0,.5);pointer-events:none;z-index:100;`;
+    canvas.appendChild(frame);
+    Object.values(p.widgets).forEach(w => {
+      const el = this.buildWidgetEl(w, false);
+      canvas.appendChild(el);
+    });
+    this.updatePlaybarInfo();
+  },
+
+  buildWidgetEl(w, isPlay) {
+    const el = document.createElement('div');
+    el.className = 'widget-el';
+    el.id = 'wel-' + w.id;
+    el.style.left = w.x + 'px';
+    el.style.top  = w.y + 'px';
+    el.style.width  = w.w + 'px';
+    el.style.height = w.h + 'px';
+
+    if (!isPlay) {
+      // Label tag
+      const tag = document.createElement('div');
+      tag.className = 'widget-label-tag';
+      tag.textContent = (w.osc || '') + (w.type === 'dpad' ? ' [dpad]' : '') + (w.type === 'zone' ? ' [zone]' : '');
+      el.appendChild(tag);
+
+      // Selection
+      el.addEventListener('mousedown', e => {
+        if (e.target.classList.contains('resize-handle')) return;
+        this.selectWidget(w.id);
+        this.startDrag(e, el, w);
+      });
+
+      // Resize handle
+      const rh = document.createElement('div');
+      rh.className = 'resize-handle';
+      rh.addEventListener('mousedown', e => {
+        e.stopPropagation();
+        this.startResize(e, el, w);
+      });
+      el.appendChild(rh);
+    }
+
+    // Inner widget
+    const inner = this.buildWidgetInner(w, isPlay);
+    el.insertBefore(inner, el.firstChild);
+
+    return el;
+  },
+
+  buildWidgetInner(w, isPlay) {
+    if (w.type === 'button') return this.buildButton(w, isPlay);
+    if (w.type === 'toggle') return this.buildToggle(w, isPlay);
+    if (w.type === 'dpad')   return this.buildDpad(w, isPlay);
+    if (w.type === 'zone')   return this.buildZone(w, isPlay);
+    return document.createElement('div');
+  },
+
+  buildZone(w, isPlay) {
+    const z = document.createElement('div');
+    z.className = 'w-zone';
+    const br = w.shape === 'circle' ? '50%' : (w.radius || 0) + 'px';
+    const stroke = w.strokeWidth ? `${w.strokeWidth}px solid ${w.strokeColor || 'rgba(255,200,0,0.7)'}` : 'none';
+    if (isPlay) {
+      const bg = w.transparent ? 'transparent' : (w.fillColor || 'transparent');
+      z.style.cssText = `width:100%;height:100%;background:${bg};border-radius:${br};border:${stroke};cursor:pointer;-webkit-tap-highlight-color:transparent;box-sizing:border-box;`;
+      z.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        if (navigator.vibrate) navigator.vibrate(30);
+        this.sendOSC(w.osc, [1]);
+      });
+      z.addEventListener('pointerup', () => this.sendOSC(w.osc, [0]));
+      z.addEventListener('pointerleave', () => {});
+    } else {
+      z.style.cssText = `width:100%;height:100%;background:rgba(255,200,0,0.06);border:2px dashed rgba(255,200,0,0.5);border-radius:${br};display:flex;align-items:center;justify-content:center;box-sizing:border-box;`;
+      const lbl = document.createElement('span');
+      lbl.style.cssText = 'font-size:.65rem;color:rgba(255,200,0,0.7);letter-spacing:.06em;text-transform:uppercase;pointer-events:none;text-align:center;padding:2px;';
+      lbl.textContent = w.osc || 'zone';
+      z.appendChild(lbl);
+    }
+    return z;
+  },
+
+  buildButton(w, isPlay) {
+    const btn = document.createElement('button');
+    btn.className = 'w-button' + (w.relief ? ' relief' : '');
+    if (w.image) {
+      btn.style.backgroundImage = 'url(' + w.image + ')';
+      btn.style.backgroundColor = w.color || '#e8ff47';
+    } else {
+      btn.style.background = w.color || '#e8ff47';
+    }
+    btn.style.color = w.textColor || '#000';
+    btn.style.fontSize = (w.fontSize || 16) + 'px';
+    btn.style.borderRadius = (w.radius || 0) + 'px';
+    if (!w.image) btn.textContent = w.label || 'BTN';
+    if (w.transparent) {
+      btn.style.background = 'transparent';
+      btn.style.backgroundImage = 'none';
+      const stroke = w.strokeWidth ? `${w.strokeWidth}px solid ${w.strokeColor || 'rgba(255,255,255,0.5)'}` : 'none';
+      btn.style.border = stroke;
+      btn.style.color = w.strokeColor || 'rgba(255,255,255,0.5)';
+    }
+    if (isPlay) {
+      btn.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        btn.classList.add('pressed');
+        if (navigator.vibrate) navigator.vibrate(30);
+        this.sendOSC(w.osc, [1]);
+      });
+      btn.addEventListener('pointerup', () => {
+        btn.classList.remove('pressed');
+        this.sendOSC(w.osc, [0]);
+      });
+      btn.addEventListener('pointerleave', () => btn.classList.remove('pressed'));
+    } else {
+      btn.style.pointerEvents = 'none';
+    }
+    return btn;
+  },
+
+  buildToggle(w, isPlay) {
+    const wrap = document.createElement('div');
+    wrap.className = 'w-toggle-wrap';
+    const btn = document.createElement('button');
+    btn.className = 'w-toggle';
+    btn.style.background = w.color || '#e8ff47';
+    btn.style.color = w.textColor || '#000';
+    btn.style.fontSize = (w.fontSize || 16) + 'px';
+    btn.style.borderRadius = (w.radius || 0) + 'px';
+    btn.textContent = w.label || 'ON';
+    const dot = document.createElement('div');
+    dot.className = 'toggle-indicator';
+    btn.appendChild(dot);
+    wrap.appendChild(btn);
+    if (isPlay) {
+      let on = false;
+      btn.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        on = !on;
+        btn.classList.toggle('on', on);
+        btn.childNodes[0].textContent = on ? (w.labelOn || w.label || 'ON') : (w.labelOff || w.label || 'OFF');
+        this.sendOSC(w.osc, [on ? 1 : 0]);
+      });
+    } else {
+      btn.style.pointerEvents = 'none';
+    }
+    return wrap;
+  },
+
+  buildDpad(w, isPlay) {
+    const dpad = document.createElement('div');
+    dpad.className = 'w-dpad';
+    const dirs = [
+      { cls: 'dpad-up',    label: '▲', osc: w.osc + '/up',    args: [0,1] },
+      { cls: 'dpad-down',  label: '▼', osc: w.osc + '/down',  args: [0,-1] },
+      { cls: 'dpad-left',  label: '◀', osc: w.osc + '/left',  args: [-1,0] },
+      { cls: 'dpad-right', label: '▶', osc: w.osc + '/right', args: [1,0] },
+    ];
+    dirs.forEach(d => {
+      const btn = document.createElement('button');
+      btn.className = 'dpad-btn ' + d.cls;
+      btn.style.background = w.color || '#e8ff47';
+      btn.style.color = w.textColor || '#000';
+      btn.style.fontSize = Math.round(w.w * .13) + 'px';
+      btn.textContent = d.label;
+      if (isPlay) {
+        btn.addEventListener('pointerdown', e => {
+          e.preventDefault();
+          btn.classList.add('pressed');
+          this.sendOSC(d.osc, [1]);
+        });
+        btn.addEventListener('pointerup', () => {
+          btn.classList.remove('pressed');
+          this.sendOSC(d.osc, [0]);
+        });
+        btn.addEventListener('pointerleave', () => btn.classList.remove('pressed'));
+      } else {
+        btn.style.pointerEvents = 'none';
+      }
+      dpad.appendChild(btn);
+    });
+    // Center piece
+    const center = document.createElement('div');
+    center.className = 'dpad-btn dpad-center';
+    center.style.background = (w.color || '#e8ff47') + '44';
+    dpad.appendChild(center);
+    return dpad;
+  },
+
+  updatePlaybarInfo() {
+    const p = this.currentPageData();
+    const count = p ? Object.keys(p.widgets).length : 0;
+    document.getElementById('playbar-info').textContent =
+      `${p ? p.name : '—'} · ${count} widget${count !== 1 ? 's' : ''}`;
+  },
+
+  /* ── Select & Inspector ───────────────────────────────────── */
+  selectWidget(id) {
+    selectedWidgetId = id;
+    // Update selection visual
+    document.querySelectorAll('.widget-el').forEach(el => el.classList.remove('selected'));
+    if (id) {
+      const el = document.getElementById('wel-' + id);
+      if (el) el.classList.add('selected');
+    }
+    this.renderInspector();
+  },
+
+  renderInspector() {
+    const container = document.getElementById('inspector');
+    if (!selectedWidgetId) {
+      container.innerHTML = '<div class="inspector-empty">← Sélectionner un widget</div>';
+      return;
+    }
+    const p = this.currentPageData();
+    const w = p?.widgets[selectedWidgetId];
+    if (!w) { container.innerHTML = ''; return; }
+
+    const fields = [];
+
+    // Label
+    if (w.type !== 'dpad') {
+      fields.push({ label: 'Label', key: 'label', type: 'text' });
+    }
+    // OSC path
+    fields.push({ label: 'Chemin OSC', key: 'osc', type: 'text' });
+    // Color
+    fields.push({ label: 'Couleur fond', key: 'color', type: 'color' });
+    fields.push({ label: 'Couleur texte', key: 'textColor', type: 'color' });
+    // Font size
+    if (w.type !== 'dpad') {
+      fields.push({ label: 'Taille texte (px)', key: 'fontSize', type: 'number', min: 8, max: 72 });
+    }
+    // Border radius (not for circle zones)
+    if (!(w.type === 'zone' && w.shape === 'circle')) {
+      fields.push({ label: 'Rayon angles (px)', key: 'radius', type: 'number', min: 0, max: 200 });
+    }
+    // Stroke
+    if (w.type === 'zone' || w.type === 'button') {
+      fields.push({ label: 'Épaisseur stroke', key: 'strokeWidth', type: 'number', min: 0, max: 20 });
+      fields.push({ label: 'Couleur stroke', key: 'strokeColor', type: 'color' });
+      if (w.type === 'button') fields.push({ label: 'Transparent', key: 'transparent', type: 'checkbox' });
+    }
+    // Position & size
+    fields.push({ label: 'X', key: 'x', type: 'number' });
+    fields.push({ label: 'Y', key: 'y', type: 'number' });
+    fields.push({ label: 'Largeur', key: 'w', type: 'number', min: 40 });
+    fields.push({ label: 'Hauteur', key: 'h', type: 'number', min: 40 });
+
+    const isBtn = w.type === 'button';
+    const imgPreview = w.image ? `<img src="${w.image}" style="width:100%;max-height:64px;object-fit:cover;border-radius:4px;margin:4px 0;pointer-events:none;">` : '';
+
+    container.innerHTML = `
+      <div class="sidebar-label" style="margin-bottom:.5rem">${w.type.toUpperCase()} · ${w.id.slice(-4)}</div>
+      ${fields.map(f => `
+        <div class="inspector-field">
+          <label>${f.label}</label>
+          <input type="${f.type}" id="inp-${f.key}"
+            value="${w[f.key] ?? ''}"
+            ${f.min !== undefined ? `min="${f.min}"` : ''}
+            ${f.max !== undefined ? `max="${f.max}"` : ''}
+          >
+        </div>
+      `).join('')}
+      ${isBtn ? `
+      <div class="inspector-field" style="flex-direction:row;align-items:center;gap:8px;padding:6px 0;">
+        <label style="flex:1;margin:0;">Transparent</label>
+        <input type="checkbox" id="inp-transparent" ${w.transparent ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer;accent-color:var(--admin-accent);">
+      </div>
+      <div class="inspector-field" style="flex-direction:row;align-items:center;gap:8px;padding:6px 0;">
+        <label style="flex:1;margin:0;">Effet relief</label>
+        <input type="checkbox" id="inp-relief" ${w.relief ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer;accent-color:var(--admin-accent);">
+      </div>
+      <div class="inspector-field" style="flex-direction:column;gap:6px;">
+        <label>Image bouton</label>
+        ${imgPreview}
+        <button class="btn-small" onclick="App.pickBtnImage('${w.id}')" style="width:100%;margin-top:2px;">📁 Choisir image</button>
+        ${w.image ? `<button class="btn-small" onclick="App.clearBtnImage('${w.id}')" style="width:100%;color:var(--admin-danger);border-color:var(--admin-danger);">✕ Retirer image</button>` : ''}
+      </div>
+      ` : ''}
+      ${w.type === 'zone' ? `
+      <div class="inspector-field">
+        <label>Forme</label>
+        <select id="inp-shape" style="background:var(--admin-surface);border:1px solid var(--admin-border);color:var(--admin-text);font-family:inherit;font-size:.78rem;padding:4px 6px;border-radius:5px;width:100%;">
+          <option value="rect" ${(w.shape||'rect')==='rect'?'selected':''}>Rectangle</option>
+          <option value="circle" ${w.shape==='circle'?'selected':''}>Cercle</option>
+        </select>
+      </div>
+      <div class="inspector-field">
+        <label>Couleur stroke</label>
+        <input type="color" id="inp-strokeColor" value="${w.strokeColor||'#ffcc00'}">
+      </div>
+      ` : ''}
+      <button class="btn-danger" onclick="App.deleteWidget('${w.id}')">Supprimer</button>
+    `;
+
+    // Live update on change
+    fields.forEach(f => {
+      const inp = document.getElementById('inp-' + f.key);
+      if (!inp) return;
+      inp.addEventListener('input', () => {
+        let val = inp.value;
+        if (f.type === 'number') val = parseFloat(val) || 0;
+        w[f.key] = val;
+        save();
+        const el = document.getElementById('wel-' + w.id);
+        if (el) {
+          el.style.left  = w.x + 'px';
+          el.style.top   = w.y + 'px';
+          el.style.width  = w.w + 'px';
+          el.style.height = w.h + 'px';
+          const inner = el.querySelector('.w-button, .w-toggle-wrap, .w-dpad');
+          if (inner) inner.replaceWith(this.buildWidgetInner(w, false));
+        }
+      });
+    });
+    // Relief checkbox
+    const reliefInp = document.getElementById('inp-relief');
+    if (reliefInp) {
+      reliefInp.addEventListener('change', () => {
+        w.relief = reliefInp.checked; save(); this.rerenderWidget(w);
+      });
+    }
+    // Transparent checkbox
+    const transInp = document.getElementById('inp-transparent');
+    if (transInp) {
+      transInp.addEventListener('change', () => {
+        w.transparent = transInp.checked; save(); this.rerenderWidget(w);
+      });
+    }
+    // Zone shape select
+    const shapeInp = document.getElementById('inp-shape');
+    if (shapeInp) {
+      shapeInp.addEventListener('change', () => {
+        w.shape = shapeInp.value; save(); this.rerenderWidget(w);
+      });
+    }
+    // StrokeColor
+    const scInp = document.getElementById('inp-strokeColor');
+    if (scInp) {
+      scInp.addEventListener('input', () => {
+        w.strokeColor = scInp.value; save(); this.rerenderWidget(w);
+      });
+    }
+  },
+
+  rerenderWidget(w) {
+    const el = document.getElementById('wel-' + w.id);
+    if (!el) return;
+    const inner = el.querySelector('.w-button,.w-toggle-wrap,.w-dpad,.w-zone,.w-button');
+    if (inner) inner.replaceWith(this.buildWidgetInner(w, false));
+  },
+
+  pickBtnImage(widgetId) {
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = 'image/*';
+    inp.onchange = e => {
+      const file = e.target.files[0]; if (!file) return;
+      const p = this.currentPageData(); if (!p) return;
+      const ww = p.widgets[widgetId]; if (!ww) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        ww.image = ev.target.result;
+        save();
+        const el = document.getElementById('wel-' + ww.id);
+        if (el) {
+          const inner = el.querySelector('.w-button, .w-toggle-wrap, .w-dpad');
+          if (inner) inner.replaceWith(this.buildWidgetInner(ww, false));
+        }
+        this.renderInspector();
+      };
+      reader.readAsDataURL(file);
+    };
+    inp.click();
+  },
+
+  clearBtnImage(widgetId) {
+    const p = this.currentPageData(); if (!p) return;
+    const ww = p.widgets[widgetId]; if (!ww) return;
+    ww.image = null; save();
+    const el = document.getElementById('wel-' + ww.id);
+    if (el) {
+      const inner = el.querySelector('.w-button, .w-toggle-wrap, .w-dpad');
+      if (inner) inner.replaceWith(this.buildWidgetInner(ww, false));
+    }
+    this.renderInspector();
+  },
+
+  /* ── Drag ─────────────────────────────────────────────────── */
+  startDrag(e, el, w) {
+    e.preventDefault();
+    const startX = e.clientX - w.x;
+    const startY = e.clientY - w.y;
+    const onMove = ev => {
+      w.x = snap(ev.clientX - startX);
+      w.y = snap(ev.clientY - startY);
+      el.style.left = w.x + 'px';
+      el.style.top  = w.y + 'px';
+      this.syncInspectorPos(w);
+    };
+    const onUp = () => {
+      save();
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  },
+
+  startResize(e, el, w) {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const initW  = w.w;
+    const initH  = w.h;
+    const onMove = ev => {
+      w.w = Math.max(40, snap(initW + ev.clientX - startX));
+      w.h = Math.max(40, snap(initH + ev.clientY - startY));
+      el.style.width  = w.w + 'px';
+      el.style.height = w.h + 'px';
+      const inner = el.querySelector('.w-button, .w-toggle-wrap, .w-dpad');
+      if (inner) inner.replaceWith(this.buildWidgetInner(w, false));
+      this.syncInspectorPos(w);
+    };
+    const onUp = () => {
+      save();
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  },
+
+  syncInspectorPos(w) {
+    const fx = document.getElementById('inp-x');
+    const fy = document.getElementById('inp-y');
+    const fw = document.getElementById('inp-w');
+    const fh = document.getElementById('inp-h');
+    if (fx) fx.value = w.x;
+    if (fy) fy.value = w.y;
+    if (fw) fw.value = w.w;
+    if (fh) fh.value = w.h;
+  },
+
+  /* ── Play mode ────────────────────────────────────────────── */
+  openPlay() {
+    const p = this.currentPageData(); if (!p) return;
+    showView('view-play');
+    document.getElementById('play-page-name').textContent = p.name;
+    document.getElementById('play-bridge-url-label').textContent = state.bridgeUrl || '';
+
+    const playCanvas = document.getElementById('play-canvas');
+    // Remove old widgets
+    playCanvas.querySelectorAll('.widget-el').forEach(el => el.remove());
+
+    // Scale scene to canvas
+    const sceneW = p.sceneW || 1280;
+    const sceneH = p.sceneH || 720;
+    const cW = playCanvas.offsetWidth  || window.innerWidth;
+    const cH = playCanvas.offsetHeight || (window.innerHeight - 44);
+    const scale = Math.min(cW / sceneW, cH / sceneH);
+    const offX = (cW - sceneW * scale) / 2;
+    const offY = (cH - sceneH * scale) / 2;
+
+    // Wrapper scène
+    let sceneEl = playCanvas.querySelector('.play-scene');
+    if (!sceneEl) { sceneEl = document.createElement('div'); sceneEl.className = 'play-scene'; playCanvas.appendChild(sceneEl); }
+    sceneEl.style.cssText = `position:absolute;left:${offX}px;top:${offY}px;width:${sceneW}px;height:${sceneH}px;transform:scale(${scale});transform-origin:0 0;overflow:hidden;`;
+
+    // Apply background to scene
+    const bg = p.bg;
+    const bgScale = bg.scale || 1;
+    const bgPosX = bg.posX !== undefined ? bg.posX : 50;
+    const bgPosY = bg.posY !== undefined ? bg.posY : 50;
+    if (bg.image) {
+      sceneEl.style.backgroundImage = `url(${bg.image})`;
+      sceneEl.style.backgroundSize = `${bgScale * 100}%`;
+      sceneEl.style.backgroundPosition = `${bgPosX}% ${bgPosY}%`;
+      sceneEl.style.backgroundRepeat = 'no-repeat';
+      sceneEl.style.backgroundColor = `rgb(${bg.r||20},${bg.g||20},${bg.b||24})`;
+    } else {
+      sceneEl.style.backgroundImage = '';
+      sceneEl.style.backgroundColor = `rgb(${bg.r||20},${bg.g||20},${bg.b||24})`;
+    }
+
+    // Render widgets inside scene (no extra scaling needed — scene handles it)
+    Object.values(p.widgets).forEach(w => {
+      const el = this.buildWidgetEl(w, true);
+      el.style.touchAction = 'none';
+      sceneEl.appendChild(el);
+    });
+
+    // Sync status dots
+    this.syncStatusDots();
+
+    // Toggle UI on tap
+    const topbar = document.getElementById('play-topbar');
+    playCanvas.addEventListener('click', e => {
+      if (e.target.closest('.play-topbar')) return;
+      uiHidden = !uiHidden;
+      topbar.classList.toggle('hidden', uiHidden);
+    }, { passive: true });
+  },
+
+  closePlay() {
+    showView('view-admin');
+  },
+
+  /* ── Player page (new tab) ────────────────────────────────── */
+  openPlayerPage() {
+    document.getElementById('player-bridge-url').value = state.bridgeUrl || 'ws://localhost:8080';
+    openModal('modal-playerpage');
+    this._refreshQR();
+  },
+
+  _refreshQR() {
+    const p = this.currentPageData(); if (!p) return;
+    const bridgeUrl = (document.getElementById('player-bridge-url')?.value.trim()) || state.bridgeUrl || 'ws://localhost:8080';
+    const base = window.location.href.split('?')[0];
+    // URL courte — la page est chargée via le bridge
+    const qrUrl = base + '?play=' + p.id + '&bridge=' + encodeURIComponent(bridgeUrl);
+    const urlEl = document.getElementById('player-qr-url');
+    if (urlEl) { urlEl.textContent = qrUrl; urlEl.href = qrUrl; }
+    const qrDiv = document.getElementById('player-qr-img');
+    if (!qrDiv) return;
+    qrDiv.innerHTML = '';
+    try {
+      // qrcode-generator: plus fiable, sortie SVG nette
+      if (window.qrcode) {
+        const qr = qrcode(0, 'M');
+        qr.addData(qrUrl);
+        qr.make();
+        const size = 240;
+        const cells = qr.getModuleCount();
+        const cell = Math.floor(size / cells);
+        const actual = cell * cells;
+        let svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + actual + '" height="' + actual + '" style="display:block;background:#fff;">';
+        for (let r = 0; r < cells; r++) {
+          for (let c = 0; c < cells; c++) {
+            if (qr.isDark(r, c)) {
+              svg += '<rect x="' + (c*cell) + '" y="' + (r*cell) + '" width="' + cell + '" height="' + cell + '" fill="#000"/>';
+            }
+          }
+        }
+        svg += '</svg>';
+        qrDiv.innerHTML = svg;
+      } else if (window.QRCode) {
+        new QRCode(qrDiv, { text: qrUrl, width: 240, height: 240,
+          colorDark: '#000000', colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.M });
+      } else {
+        throw new Error('no lib');
+      }
+    } catch(e) {
+      qrDiv.style.cssText = 'font-size:9px;word-break:break-all;color:#888;padding:8px;text-align:center;';
+      qrDiv.textContent = qrUrl;
+    }
+  },
+
+  launchPlayerPage() {
+    const url = document.getElementById('player-bridge-url')?.value.trim();
+    if (url) { state.bridgeUrl = url; save(); }
+    this._refreshQR();
+  },
+
+  buildPlayerHtml(page, bridgeUrl) {
+    const bgStyle = page.bg.image
+      ? `background-image:url('${page.bg.image}');background-size:cover;background-position:center;`
+      : `background-color:rgb(${page.bg.r},${page.bg.g},${page.bg.b});`;
+
+    const widgetsJson = JSON.stringify(Object.values(page.widgets));
+
+    return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>${page.name} — OSC Controller</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;touch-action:none}
+body{${bgStyle}position:relative;font-family:'DM Mono',monospace;}
+.widget-el{position:absolute;touch-action:none;}
+.w-button{display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:700;cursor:pointer;border:none;outline:none;width:100%;height:100%;transition:box-shadow .08s,transform .08s,filter .08s;background-size:cover;background-position:center;background-repeat:no-repeat;overflow:hidden;}
+.w-button.relief{box-shadow:0 1px 0 rgba(255,255,255,.22) inset,0 -2px 0 rgba(0,0,0,.4) inset,0 6px 0 rgba(0,0,0,.38),0 8px 14px rgba(0,0,0,.5);}
+.w-button.relief.pressed{box-shadow:0 1px 0 rgba(255,255,255,.10) inset,0 -1px 0 rgba(0,0,0,.2) inset,0 2px 0 rgba(0,0,0,.35),0 3px 6px rgba(0,0,0,.4);transform:translateY(4px);}
+.w-button:not(.relief).pressed{filter:brightness(1.3);transform:scale(.94);}
+.w-toggle{position:relative;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:700;cursor:pointer;border:none;outline:none;width:100%;height:100%;transition:filter .15s;}
+.w-toggle.on{filter:brightness(1.25);}
+.toggle-indicator{position:absolute;bottom:6px;right:8px;width:8px;height:8px;border-radius:50%;background:rgba(0,0,0,.4);transition:background .2s;}
+.w-toggle.on .toggle-indicator{background:rgba(255,255,255,.8);}
+.w-dpad{position:relative;width:100%;height:100%;}
+.dpad-btn{position:absolute;display:flex;align-items:center;justify-content:center;cursor:pointer;border:none;outline:none;user-select:none;transition:filter .1s,transform .08s;}
+.dpad-btn.pressed{filter:brightness(1.4);transform:scale(.9);}
+.dpad-up{top:0;left:33.33%;width:33.33%;height:33.33%;}
+.dpad-down{bottom:0;left:33.33%;width:33.33%;height:33.33%;}
+.dpad-left{top:33.33%;left:0;width:33.33%;height:33.33%;}
+.dpad-right{top:33.33%;right:0;width:33.33%;height:33.33%;}
+.dpad-center{top:33.33%;left:33.33%;width:33.33%;height:33.33%;}
+.hud{position:fixed;top:0;left:0;right:0;display:flex;align-items:center;gap:.5rem;padding:.4rem .75rem;background:rgba(0,0,0,.5);backdrop-filter:blur(8px);font-size:.72rem;color:rgba(255,255,255,.5);z-index:100;transition:opacity .3s;}
+.hud.hidden{opacity:0;pointer-events:none;}
+.hud-dot{width:7px;height:7px;border-radius:50%;background:#ff4747;flex-shrink:0;}
+.hud-dot.on{background:#47ff8a;}
+.hud-name{font-family:'Syne',sans-serif;font-weight:700;font-size:.85rem;color:rgba(255,255,255,.8);}
+</style>
+</head>
+<body>
+<div class="hud" id="hud">
+  <div class="hud-dot" id="hud-dot"></div>
+  <span class="hud-name">${page.name}</span>
+  <span style="opacity:.5;font-size:.68rem">${bridgeUrl}</span>
+</div>
+<script>
+const BRIDGE_URL = ${JSON.stringify(bridgeUrl)};
+const WIDGETS = ${widgetsJson};
+let ws, wsOk = false;
+
+function connect() {
+  ws = new WebSocket(BRIDGE_URL);
+  ws.onopen = () => { wsOk = true; document.getElementById('hud-dot').className = 'hud-dot on'; };
+  ws.onclose = () => { wsOk = false; document.getElementById('hud-dot').className = 'hud-dot'; setTimeout(connect, 2000); };
+  ws.onerror = () => ws.close();
+}
+connect();
+
+function sendOSC(address, args) {
+  if (ws && wsOk) ws.send(JSON.stringify({ type: 'osc', address, args }));
+}
+
+function buildWidget(w) {
+  const el = document.createElement('div');
+  el.className = 'widget-el';
+  el.style.cssText = \`left:\${w.x}px;top:\${w.y}px;width:\${w.w}px;height:\${w.h}px;\`;
+
+  if (w.type === 'button') {
+    const btn = document.createElement('button');
+    btn.className = 'w-button' + (w.relief ? ' relief' : '');
+    if (w.image) {
+      btn.style.cssText = \`background-image:url(\${w.image});background-color:\${w.color||'#e8ff47'};color:\${w.textColor||'#000'};font-size:\${w.fontSize||16}px;border-radius:\${w.radius||0}px\`;
+    } else {
+      btn.style.cssText = \`background:\${w.color||'#e8ff47'};color:\${w.textColor||'#000'};font-size:\${w.fontSize||16}px;border-radius:\${w.radius||0}px\`;
+      btn.textContent = w.label || 'BTN';
+    }
+    btn.addEventListener('pointerdown', e => { e.preventDefault(); btn.classList.add('pressed'); sendOSC(w.osc,[1]); });
+    btn.addEventListener('pointerup', () => { btn.classList.remove('pressed'); sendOSC(w.osc,[0]); });
+    btn.addEventListener('pointerleave', () => btn.classList.remove('pressed'));
+    el.appendChild(btn);
+  }
+
+  if (w.type === 'toggle') {
+    let on = false;
+    const btn = document.createElement('button');
+    btn.className = 'w-toggle';
+    btn.style.cssText = \`background:\${w.color||'#e8ff47'};color:\${w.textColor||'#000'};font-size:\${w.fontSize||16}px;border-radius:\${w.radius||0}px\`;
+    btn.textContent = w.label || 'ON';
+    const dot = document.createElement('div'); dot.className = 'toggle-indicator';
+    btn.appendChild(dot);
+    btn.addEventListener('pointerdown', e => {
+      e.preventDefault(); if(navigator.vibrate) navigator.vibrate(20); on = !on;
+      btn.classList.toggle('on', on);
+      btn.childNodes[0].textContent = on ? (w.labelOn||w.label||'ON') : (w.labelOff||w.label||'OFF');
+      sendOSC(w.osc, [on?1:0]);
+    });
+    el.appendChild(btn);
+  }
+
+  if (w.type === 'dpad') {
+    const dpad = document.createElement('div'); dpad.className = 'w-dpad';
+    const dirs = [
+      {cls:'dpad-up',   lbl:'▲',osc:w.osc+'/up'},
+      {cls:'dpad-down', lbl:'▼',osc:w.osc+'/down'},
+      {cls:'dpad-left', lbl:'◀',osc:w.osc+'/left'},
+      {cls:'dpad-right',lbl:'▶',osc:w.osc+'/right'},
+    ];
+    dirs.forEach(d => {
+      const btn = document.createElement('button');
+      btn.className = 'dpad-btn ' + d.cls;
+      btn.style.cssText = \`background:\${w.color||'#e8ff47'};color:\${w.textColor||'#000'};font-size:\${Math.round(w.w*.13)}px\`;
+      btn.textContent = d.lbl;
+      btn.addEventListener('pointerdown', e => { e.preventDefault(); if(navigator.vibrate) navigator.vibrate(15); btn.classList.add('pressed'); sendOSC(d.osc,[1]); });
+      btn.addEventListener('pointerup', () => { btn.classList.remove('pressed'); sendOSC(d.osc,[0]); });
+      btn.addEventListener('pointerleave', () => btn.classList.remove('pressed'));
+      dpad.appendChild(btn);
+    });
+    const c = document.createElement('div');
+    c.className = 'dpad-btn dpad-center';
+    c.style.background = (w.color||'#e8ff47')+'44';
+    dpad.appendChild(c);
+    el.appendChild(dpad);
+  }
+
+  if (w.type === 'zone') {
+    const z = document.createElement('div');
+    z.style.cssText = 'width:100%;height:100%;background:transparent;cursor:pointer;-webkit-tap-highlight-color:transparent;';
+    z.addEventListener('pointerdown', e => { e.preventDefault(); sendOSC(w.osc,[1]); });
+    z.addEventListener('pointerup', () => sendOSC(w.osc,[0]));
+    el.appendChild(z);
+  }
+
+  return el;
+}
+
+WIDGETS.forEach(w => document.body.appendChild(buildWidget(w)));
+
+// Toggle HUD
+let hidden = false;
+document.body.addEventListener('click', e => {
+  if (e.target.closest('.hud')) return;
+  hidden = !hidden;
+  document.getElementById('hud').classList.toggle('hidden', hidden);
+});
+<\/script>
+</body>
+</html>`;
+  },
+
+  /* ── Bridge ───────────────────────────────────────────────── */
+  connectBridge() {
+    const url = document.getElementById('bridge-url').value.trim();
+    if (!url) return;
+    state.bridgeUrl = url;
+    save();
+    if (ws) { try { ws.close(); } catch {} }
+    ws = new WebSocket(url);
+    ws.onopen = () => {
+      wsConnected = true;
+      this.syncStatusDots();
+      // Push toutes les pages au bridge pour les appareils sans localStorage
+      Object.entries(state.pages).forEach(([id, pg]) => {
+        ws.send(JSON.stringify({ type: 'storePage', pageId: id, page: pg }));
+      });
+    };
+    ws.onclose = () => {
+      wsConnected = false;
+      this.syncStatusDots();
+      setTimeout(() => this.connectBridge(), 3000);
+    };
+    ws.onerror = () => ws.close();
+  },
+
+  syncStatusDots() {
+    const cls = wsConnected ? 'status-dot connected' : 'status-dot';
+    const adminDot = document.getElementById('admin-status-dot');
+    const playDot  = document.getElementById('play-status-dot');
+    if (adminDot) adminDot.className = cls;
+    if (playDot)  playDot.className = cls.replace('status-dot', 'play-status-dot');
+  },
+
+  sendOSC(address, args) {
+    if (ws && wsConnected) {
+      ws.send(JSON.stringify({ type: 'osc', address, args }));
+    }
+  },
+
+  /* ── Modal helpers ────────────────────────────────────────── */
+  closeModal(id) { document.getElementById(id).classList.remove('open'); },
+};
+
+/* ── Helpers ─────────────────────────────────────────────────── */
+function showView(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function snap(v) { return Math.round(v / SNAP) * SNAP; }
+
+/* ── Boot ────────────────────────────────────────────────────── */
+App.init();
+
+// Direct play: ?play=pageId&bridge=ws://...
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const pageId = params.get('play');
+  if (!pageId) return;
+  // La page peut venir du localStorage (même appareil) ou du bridge (autre appareil)
+  let page = state.pages[pageId];
+  if (!page) {
+    // Pas dans le localStorage local — on demande la page au bridge
+    const bridgeForFetch = params.get('bridge') ? decodeURIComponent(params.get('bridge')) : null;
+    if (!bridgeForFetch) { console.warn('OSC: page not found and no bridge to fetch from'); return; }
+    // Afficher un écran de chargement le temps de récupérer la page
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-play').classList.add('active');
+    const playCanvas = document.getElementById('play-canvas');
+    playCanvas.style.backgroundColor = '#0e0e0f';
+    playCanvas.innerHTML = '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#888;font-size:.85rem;flex-direction:column;gap:12px;"><div style="font-size:1.5rem">⟳</div>Connexion au bridge...</div>';
+    const wsTemp = new WebSocket(bridgeForFetch);
+    wsTemp.onopen = () => wsTemp.send(JSON.stringify({ type: 'getPage', pageId }));
+    wsTemp.onmessage = (evt) => {
+      try {
+        const msg = JSON.parse(evt.data);
+        if (msg.type === 'pageData' && msg.page) {
+          page = msg.page;
+          state.pages[pageId] = page;
+          save();
+          wsTemp.close();
+          // Relancer le boot avec la page maintenant disponible
+          window.location.reload();
+        }
+      } catch(e) {}
+    };
+    wsTemp.onerror = () => {
+      playCanvas.innerHTML = '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#ff4747;font-size:.8rem;text-align:center;padding:20px;">Bridge inaccessible.<br>Vérifie la connexion.</div>';
+    };
+    return; // On attend la réponse du bridge
+  }
+  const bridgeParam = params.get('bridge');
+  if (bridgeParam) state.bridgeUrl = decodeURIComponent(bridgeParam);
+  state.currentPage = pageId; save();
+  // Go straight to play — no login
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-play').classList.add('active');
+  // Hide back-to-admin button so players can't reach the editor
+  const backBtn = document.querySelector('#view-play .btn-back');
+  if (backBtn) backBtn.style.display = 'none';
+  document.getElementById('play-page-name').textContent = page.name;
+  const lbl = document.getElementById('play-bridge-url-label');
+  if (lbl) lbl.textContent = state.bridgeUrl;
+  const playCanvas = document.getElementById('play-canvas');
+  const bg = page.bg;
+  const scW = page.sceneW || 1280;
+  const scH = page.sceneH || 720;
+  const cW3 = playCanvas.offsetWidth  || window.innerWidth;
+  const cH3 = playCanvas.offsetHeight || (window.innerHeight - 44);
+  const sc3 = Math.min(cW3 / scW, cH3 / scH);
+  const ox3 = (cW3 - scW * sc3) / 2;
+  const oy3 = (cH3 - scH * sc3) / 2;
+  const sc3El = document.createElement('div');
+  sc3El.className = 'play-scene';
+  sc3El.style.cssText = 'position:absolute;left:'+ox3+'px;top:'+oy3+'px;width:'+scW+'px;height:'+scH+'px;transform:scale('+sc3+');transform-origin:0 0;overflow:hidden;';
+  if (bg.image) {
+    sc3El.style.backgroundImage = 'url('+bg.image+')';
+    sc3El.style.backgroundSize = ((bg.scale||1)*100)+'%';
+    sc3El.style.backgroundPosition = (bg.posX||50)+'% '+(bg.posY||50)+'%';
+    sc3El.style.backgroundRepeat = 'no-repeat';
+    sc3El.style.backgroundColor = 'rgb('+(bg.r||20)+','+(bg.g||20)+','+(bg.b||24)+')';
+  } else {
+    sc3El.style.backgroundColor = 'rgb('+(bg.r||20)+','+(bg.g||20)+','+(bg.b||24)+')';
+  }
+  playCanvas.appendChild(sc3El);
+  Object.values(page.widgets).forEach(w => {
+    const el = App.buildWidgetEl(w, true);
+    el.style.touchAction = 'none';
+    sc3El.appendChild(el);
+  });
+  // Connect bridge
+  const wsDirect = new WebSocket(state.bridgeUrl);
+  wsDirect.onopen  = () => { wsConnected = true;  App.syncStatusDots(); };
+  wsDirect.onclose = () => { wsConnected = false; App.syncStatusDots();
+    setTimeout(() => { const w2 = new WebSocket(state.bridgeUrl);
+      w2.onopen = () => { wsConnected=true; App.syncStatusDots(); ws=w2; };
+      w2.onerror = () => w2.close(); ws=w2; }, 3000);
+  };
+  wsDirect.onerror = () => wsDirect.close();
+  ws = wsDirect;
+})();
+</script>
+</body>
+</html>
+`;
