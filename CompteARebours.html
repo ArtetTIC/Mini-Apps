@@ -1,0 +1,536 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+#app{display:grid;grid-template-columns:300px 1fr;gap:0;height:600px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden;font-family:var(--font-sans)}
+#panel{background:var(--color-background-secondary);border-right:0.5px solid var(--color-border-tertiary);padding:14px;overflow-y:auto;display:flex;flex-direction:column;gap:10px}
+#preview{background:#111;display:flex;flex-direction:column;align-items:stretch;justify-content:stretch;position:relative;overflow:hidden}
+#canvas-wrap{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden}
+canvas#main{max-width:100%;max-height:100%;display:block}
+.section{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:7px}
+.stitle{font-size:10px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.06em}
+.row{display:flex;align-items:center;gap:8px}
+.row label{font-size:12px;color:var(--color-text-secondary);min-width:82px;flex-shrink:0}
+.row input,.row select{flex:1;font-size:12px;padding:4px 7px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-secondary);border-radius:6px;color:var(--color-text-primary);min-width:0}
+.row input[type=color]{padding:1px 3px;height:28px;cursor:pointer}
+.row input[type=range]{padding:0}
+.vval{font-size:11px;color:var(--color-text-secondary);min-width:32px;text-align:right}
+.btns{display:flex;gap:7px}
+button{flex:1;padding:7px 10px;font-size:12px;border:0.5px solid var(--color-border-secondary);border-radius:7px;cursor:pointer;background:var(--color-background-primary);color:var(--color-text-primary);transition:background .12s}
+button:hover{background:var(--color-background-secondary)}
+button.primary{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+button.primary:hover{background:#333}
+button.danger{background:#c0392b;color:#fff;border-color:#c0392b}
+button:disabled{opacity:.45;cursor:default}
+#statusbar{background:rgba(0,0,0,.5);color:rgba(255,255,255,.7);font-size:11px;padding:5px 10px;display:flex;align-items:center;gap:8px;font-family:monospace}
+#progwrap{flex:1;height:3px;background:rgba(255,255,255,.15);border-radius:2px;overflow:hidden}
+#progfill{height:100%;background:#e74c3c;width:0%;transition:width .08s linear}
+</style>
+
+<h2 class="sr-only">Compteur animé avec export MP4</h2>
+<div id="app">
+<div id="panel">
+
+  <div class="section">
+    <div class="stitle">Valeurs</div>
+    <div class="row"><label>Direction</label>
+      <select id="direction"><option value="down">Compte à rebours ↓</option><option value="up">Compte en avant ↑</option></select>
+    </div>
+    <div class="row"><label>Type</label>
+      <select id="valueType"><option value="number">Entiers</option><option value="time">Temps HH:MM:SS</option></select>
+    </div>
+    <div class="row"><label>Départ</label><input type="text" id="valStart" value="0"></div>
+    <div class="row"><label>Arrivée</label><input type="text" id="valEnd" value="700000"></div>
+    <div class="row"><label>Durée (s)</label><input type="number" id="duration" value="5" min="1" max="300"></div>
+  </div>
+
+  <div class="section">
+    <div class="stitle">Effet visuel</div>
+    <div class="row"><label>Animation</label>
+      <select id="effect">
+        <option value="solari">Solari / aéroport</option>
+        <option value="slot">Slot machine</option>
+        <option value="split">Split flap</option>
+        <option value="fade">Fondu</option>
+        <option value="zoom">Zoom pulse</option>
+        <option value="glitch">Glitch RGB</option>
+        <option value="plain">Sans effet</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="stitle">Style</div>
+    <div class="row"><label>Police</label>
+      <select id="fontFam">
+        <option value="'Courier New',monospace">Courier New</option>
+        <option value="'Arial Black',sans-serif">Arial Black</option>
+        <option value="Impact,sans-serif">Impact</option>
+        <option value="Georgia,serif">Georgia</option>
+        <option value="monospace">Mono générique</option>
+      </select>
+    </div>
+    <div class="row">
+      <label>Taille</label>
+      <input type="range" id="fontSize" min="30" max="280" value="140">
+      <span class="vval" id="fontSizeVal">140</span>
+    </div>
+    <div class="row"><label>Couleur texte</label><input type="color" id="textColor" value="#ffffff"></div>
+    <div class="row"><label>Fond</label>
+      <select id="bgType"><option value="solid">Uni</option><option value="gradient">Dégradé V</option></select>
+    </div>
+    <div class="row"><label>Fond couleur 1</label><input type="color" id="bgColor1" value="#000000"></div>
+    <div class="row"><label>Fond couleur 2</label><input type="color" id="bgColor2" value="#0d0d2b"></div>
+  </div>
+
+  <div class="section">
+    <div class="stitle">Export MP4</div>
+    <div class="row"><label>Résolution</label>
+      <select id="resolution">
+        <option value="1920x1080">1920×1080</option>
+        <option value="1280x720" selected>1280×720</option>
+        <option value="854x480">854×480</option>
+      </select>
+    </div>
+    <div class="row"><label>FPS</label>
+      <select id="fps"><option value="60">60 fps</option><option value="30" selected>30 fps</option><option value="25">25 fps</option></select>
+    </div>
+  </div>
+
+  <div class="btns">
+    <button id="btnPlay" class="primary">▶ Aperçu</button>
+    <button id="btnStop" class="danger" disabled>■ Stop</button>
+  </div>
+  <button id="btnExport">⬇ Exporter MP4/WebM</button>
+
+</div>
+
+<div id="preview">
+  <div id="canvas-wrap"><canvas id="main" width="640" height="360"></canvas></div>
+  <div id="statusbar">
+    <span id="statusTxt">Prêt</span>
+    <div id="progwrap"><div id="progfill"></div></div>
+    <span id="statusPct">0%</span>
+  </div>
+</div>
+</div>
+
+<script>
+const canvas = document.getElementById('main');
+const ctx = canvas.getContext('2d');
+
+let rafId = null;
+let running = false;
+let mediaRec = null;
+let chunks = [];
+
+document.getElementById('fontSize').oninput = e => document.getElementById('fontSizeVal').textContent = e.target.value;
+
+function cfg() {
+  const [ew,eh] = document.getElementById('resolution').value.split('x').map(Number);
+  return {
+    direction: document.getElementById('direction').value,
+    vtype: document.getElementById('valueType').value,
+    valStart: document.getElementById('valStart').value.trim(),
+    valEnd: document.getElementById('valEnd').value.trim(),
+    duration: Math.max(0.1, parseFloat(document.getElementById('duration').value)||5),
+    effect: document.getElementById('effect').value,
+    fontFam: document.getElementById('fontFam').value,
+    fontSize: parseInt(document.getElementById('fontSize').value),
+    textColor: document.getElementById('textColor').value,
+    bgType: document.getElementById('bgType').value,
+    bgColor1: document.getElementById('bgColor1').value,
+    bgColor2: document.getElementById('bgColor2').value,
+    fps: parseInt(document.getElementById('fps').value),
+    ew, eh
+  };
+}
+
+function parseVal(v, vtype) {
+  if (vtype === 'time') {
+    const parts = v.split(':').map(s=>parseInt(s)||0);
+    if (parts.length===3) return parts[0]*3600+parts[1]*60+parts[2];
+    if (parts.length===2) return parts[0]*60+parts[1];
+    return parseInt(v)||0;
+  }
+  return parseInt(v.replace(/[\s.,]/g,''))||0;
+}
+
+function fmtVal(n, vtype) {
+  n = Math.round(n);
+  if (vtype === 'time') {
+    const t = Math.abs(n);
+    const h = Math.floor(t/3600), m = Math.floor((t%3600)/60), s = t%60;
+    if (h > 0) return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  }
+  return n.toLocaleString('fr-FR');
+}
+
+function drawBg(c, config, w, h) {
+  if (config.bgType === 'gradient') {
+    const gr = c.createLinearGradient(0,0,0,h);
+    gr.addColorStop(0, config.bgColor1);
+    gr.addColorStop(1, config.bgColor2);
+    c.fillStyle = gr;
+  } else {
+    c.fillStyle = config.bgColor1;
+  }
+  c.fillRect(0,0,w,h);
+}
+
+function measureChar(c, config, w) {
+  const fs = config.fontSize * (w/640);
+  c.font = `bold ${fs}px ${config.fontFam}`;
+  return fs;
+}
+
+function drawPlain(c, config, text, w, h) {
+  const fs = measureChar(c, config, w);
+  c.font = `bold ${fs}px ${config.fontFam}`;
+  c.fillStyle = config.textColor;
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+  c.fillText(text, w/2, h/2);
+}
+
+function drawFade(c, config, text, prevText, frac, w, h) {
+  const fs = measureChar(c, config, w);
+  c.font = `bold ${fs}px ${config.fontFam}`;
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+  if (text !== prevText) {
+    const a = Math.sin(frac * Math.PI);
+    c.globalAlpha = 1 - a * 0.5;
+  }
+  c.fillStyle = config.textColor;
+  c.fillText(text, w/2, h/2);
+  c.globalAlpha = 1;
+}
+
+function drawZoom(c, config, text, frac, w, h) {
+  const fs = measureChar(c, config, w);
+  c.font = `bold ${fs}px ${config.fontFam}`;
+  c.fillStyle = config.textColor;
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+  const pulse = 1 + Math.sin(frac * Math.PI) * 0.06;
+  c.save();
+  c.translate(w/2, h/2);
+  c.scale(pulse, pulse);
+  c.fillText(text, 0, 0);
+  c.restore();
+}
+
+function drawGlitch(c, config, text, frac, w, h) {
+  const fs = measureChar(c, config, w);
+  c.font = `bold ${fs}px ${config.fontFam}`;
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+  const t = Date.now() / 1000;
+  const g = (t % 0.25) < 0.05;
+  if (g) {
+    c.fillStyle = 'rgba(255,30,30,0.75)';
+    c.fillText(text, w/2+4, h/2-2);
+    c.fillStyle = 'rgba(30,255,30,0.75)';
+    c.fillText(text, w/2-3, h/2+2);
+    c.fillStyle = 'rgba(80,80,255,0.75)';
+    c.fillText(text, w/2+(Math.random()-0.5)*8, h/2);
+  }
+  c.fillStyle = config.textColor;
+  c.fillText(text, w/2, h/2);
+}
+
+const FLIP_CHARS = '0123456789 ,.';
+
+function drawSolari(c, config, text, prevText, frac, w, h) {
+  const fs = measureChar(c, config, w);
+  c.font = `bold ${fs}px ${config.fontFam}`;
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+
+  const maxLen = Math.max(text.length, prevText.length);
+  const pText = prevText.padStart(maxLen,' ');
+  const cText = text.padStart(maxLen,' ');
+  const charW = c.measureText('0').width * 1.15;
+  const totalW = charW * maxLen;
+  const sx = w/2 - totalW/2 + charW/2;
+  const cy = h/2;
+  const cardH = fs * 1.3;
+  const halfH = cardH / 2;
+
+  for (let i = 0; i < maxLen; i++) {
+    const x = sx + i * charW;
+    const pCh = pText[i] || ' ';
+    const nCh = cText[i] || ' ';
+    const changing = pCh !== nCh;
+
+    c.save();
+    c.beginPath();
+    c.rect(x - charW/2, cy - halfH, charW, cardH);
+    c.clip();
+
+    c.fillStyle = 'rgba(20,20,20,0.6)';
+    c.fillRect(x - charW/2, cy - halfH, charW, cardH);
+
+    if (!changing) {
+      c.fillStyle = config.textColor;
+      c.fillText(nCh, x, cy);
+    } else {
+      if (frac < 0.5) {
+        const f = frac * 2;
+        c.save();
+        c.translate(x, cy - halfH/2);
+        c.scale(1, 1 - f);
+        c.fillStyle = config.textColor;
+        c.fillText(pCh, 0, 0);
+        c.restore();
+        c.fillStyle = config.textColor;
+        c.fillText(nCh, x, cy + halfH/2);
+      } else {
+        const f = (frac - 0.5) * 2;
+        c.fillStyle = config.textColor;
+        c.fillText(pCh, x, cy - halfH/2);
+        c.save();
+        c.translate(x, cy + halfH/2);
+        c.scale(1, f);
+        c.fillStyle = config.textColor;
+        c.fillText(nCh, 0, 0);
+        c.restore();
+      }
+      c.fillStyle = 'rgba(0,0,0,0.5)';
+      c.fillRect(x - charW/2, cy - 1, charW, 2);
+    }
+
+    c.restore();
+  }
+}
+
+function drawSlot(c, config, text, prevText, frac, w, h) {
+  const fs = measureChar(c, config, w);
+  c.font = `bold ${fs}px ${config.fontFam}`;
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+
+  const maxLen = Math.max(text.length, prevText.length);
+  const pText = prevText.padStart(maxLen,' ');
+  const cText = text.padStart(maxLen,' ');
+  const charW = c.measureText('0').width * 1.2;
+  const totalW = charW * maxLen;
+  const sx = w/2 - totalW/2 + charW/2;
+  const cy = h/2;
+  const slotH = fs * 1.2;
+
+  const DIGITS = '0123456789 ,.';
+
+  for (let i = 0; i < maxLen; i++) {
+    const x = sx + i * charW;
+    const pCh = pText[i] || ' ';
+    const nCh = cText[i] || ' ';
+
+    c.save();
+    c.beginPath();
+    c.rect(x - charW/2, cy - slotH/2, charW, slotH);
+    c.clip();
+
+    if (pCh === nCh) {
+      c.fillStyle = config.textColor;
+      c.fillText(nCh, x, cy);
+    } else {
+      const pIdx = DIGITS.indexOf(pCh); const nIdx = DIGITS.indexOf(nCh);
+      const travel = frac;
+      for (let k = -1; k <= 1; k++) {
+        const yOff = (k - travel) * slotH;
+        if (Math.abs(yOff) > slotH) continue;
+        const alpha = Math.max(0, 1 - Math.abs(yOff) / slotH * 1.5);
+        c.globalAlpha = alpha;
+        c.fillStyle = config.textColor;
+        const ch = k === 0 ? pCh : (k === 1 ? nCh : ' ');
+        c.fillText(ch, x, cy + yOff);
+      }
+      c.globalAlpha = 1;
+    }
+    c.restore();
+  }
+}
+
+function drawSplit(c, config, text, prevText, frac, w, h) {
+  const fs = measureChar(c, config, w);
+  c.font = `bold ${fs}px ${config.fontFam}`;
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+
+  const maxLen = Math.max(text.length, prevText.length);
+  const pText = prevText.padStart(maxLen,' ');
+  const cText = text.padStart(maxLen,' ');
+  const charW = c.measureText('0').width * 1.2;
+  const totalW = charW * maxLen;
+  const sx = w/2 - totalW/2 + charW/2;
+  const cy = h/2;
+  const cH = fs * 1.1;
+
+  for (let i = 0; i < maxLen; i++) {
+    const x = sx + i * charW;
+    const pCh = pText[i]||' ';
+    const nCh = cText[i]||' ';
+    const changing = pCh !== nCh;
+
+    c.save();
+
+    if (!changing) {
+      c.fillStyle = config.textColor;
+      c.fillText(nCh, x, cy);
+    } else {
+      c.beginPath(); c.rect(x-charW/2, cy-cH/2, charW, cH/2); c.clip();
+      if (frac < 0.5) { c.fillStyle=config.textColor; c.fillText(pCh,x,cy); }
+      else { c.fillStyle=config.textColor; c.fillText(nCh,x,cy); }
+      c.restore(); c.save();
+      c.beginPath(); c.rect(x-charW/2, cy, charW, cH/2); c.clip();
+      if (frac < 0.5) {
+        const sc = 1 - frac*2;
+        c.save(); c.translate(x,cy+cH/4); c.scale(1,sc); c.fillStyle=config.textColor; c.fillText(pCh,0,-cH/4); c.restore();
+      } else {
+        const sc = (frac-0.5)*2;
+        c.save(); c.translate(x,cy+cH/4); c.scale(1,sc); c.fillStyle=config.textColor; c.fillText(nCh,0,-cH/4); c.restore();
+      }
+    }
+    c.restore();
+    c.fillStyle='rgba(0,0,0,0.5)';
+    c.fillRect(x-charW/2, cy-0.5, charW, 1);
+  }
+}
+
+function renderFrame(c, config, progress, vStart, vEnd, w, h, prevText) {
+  const rawVal = vStart + (vEnd - vStart) * progress;
+  const val = Math.round(rawVal);
+  const text = fmtVal(val, config.vtype);
+  const frac = (progress * 20) % 1;
+
+  drawBg(c, config, w, h);
+
+  switch(config.effect) {
+    case 'solari': drawSolari(c, config, text, prevText, frac, w, h); break;
+    case 'slot':   drawSlot(c, config, text, prevText, frac, w, h); break;
+    case 'split':  drawSplit(c, config, text, prevText, frac, w, h); break;
+    case 'fade':   drawFade(c, config, text, prevText, frac, w, h); break;
+    case 'zoom':   drawZoom(c, config, text, frac, w, h); break;
+    case 'glitch': drawGlitch(c, config, text, frac, w, h); break;
+    default:       drawPlain(c, config, text, w, h); break;
+  }
+  return text;
+}
+
+function setStatus(txt, pct) {
+  document.getElementById('statusTxt').textContent = txt;
+  document.getElementById('progfill').style.width = pct + '%';
+  document.getElementById('statusPct').textContent = Math.round(pct) + '%';
+}
+
+function runAnimation(targetCanvas, targetCtx, config, onDone) {
+  const vStart = parseVal(config.valStart, config.vtype);
+  const vEnd   = parseVal(config.valEnd,   config.vtype);
+  let prevText = fmtVal(vStart, config.vtype);
+  let t0 = null;
+
+  function frame(ts) {
+    if (!t0) t0 = ts;
+    const elapsed = (ts - t0) / 1000;
+    let progress = elapsed / config.duration;
+    let done = false;
+    if (progress >= 1) { progress = 1; done = true; }
+
+    prevText = renderFrame(targetCtx, config, progress, vStart, vEnd, targetCanvas.width, targetCanvas.height, prevText);
+
+    const pct = progress * 100;
+    setStatus(fmtVal(vStart + (vEnd-vStart)*progress, config.vtype), pct);
+
+    if (done) { if (onDone) onDone(); return; }
+    if (running) rafId = requestAnimationFrame(frame);
+  }
+  rafId = requestAnimationFrame(frame);
+}
+
+function stop() {
+  running = false;
+  if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+  document.getElementById('btnPlay').disabled = false;
+  document.getElementById('btnStop').disabled = true;
+  document.getElementById('btnExport').disabled = false;
+}
+
+document.getElementById('btnPlay').onclick = () => {
+  stop();
+  const config = cfg();
+  running = true;
+  document.getElementById('btnPlay').disabled = true;
+  document.getElementById('btnStop').disabled = false;
+  document.getElementById('btnExport').disabled = true;
+  canvas.width = 640; canvas.height = 360;
+  runAnimation(canvas, ctx, config, () => {
+    stop();
+    setStatus('Terminé ✓', 100);
+  });
+};
+
+document.getElementById('btnStop').onclick = () => {
+  stop();
+  setStatus('Arrêté', 0);
+};
+
+document.getElementById('btnExport').onclick = async () => {
+  const config = cfg();
+  const expBtn = document.getElementById('btnExport');
+  expBtn.disabled = true;
+  expBtn.textContent = '⏳ Encodage...';
+  document.getElementById('btnPlay').disabled = true;
+
+  const oc = document.createElement('canvas');
+  oc.width = config.ew; oc.height = config.eh;
+  const oc2 = oc.getContext('2d');
+
+  const mimes = ['video/mp4;codecs=avc1','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
+  let mime = mimes.find(m => MediaRecorder.isTypeSupported(m)) || '';
+  if (!mime) {
+    alert('MediaRecorder non supporté. Utilisez Chrome ou Edge.');
+    expBtn.disabled = false; expBtn.textContent = '⬇ Exporter MP4/WebM';
+    document.getElementById('btnPlay').disabled = false;
+    return;
+  }
+
+  chunks = [];
+  const stream = oc.captureStream(config.fps);
+  mediaRec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 10000000 });
+  mediaRec.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+  mediaRec.onstop = () => {
+    const blob = new Blob(chunks, { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `compteur.${mime.includes('mp4')?'mp4':'webm'}`;
+    a.click(); URL.revokeObjectURL(url);
+    expBtn.textContent = '⬇ Exporter MP4/WebM';
+    expBtn.disabled = false;
+    document.getElementById('btnPlay').disabled = false;
+    setStatus('Export terminé ✓', 100);
+  };
+
+  mediaRec.start(100);
+  running = true;
+
+  const vStart = parseVal(config.valStart, config.vtype);
+  const vEnd   = parseVal(config.valEnd,   config.vtype);
+  let prevText = fmtVal(vStart, config.vtype);
+  const totalFrames = Math.ceil(config.duration * config.fps);
+
+  function exportNextFrame(i) {
+    if (!running) { mediaRec.stop(); return; }
+    const progress = i >= totalFrames ? 1 : i / totalFrames;
+    prevText = renderFrame(oc2, config, progress, vStart, vEnd, oc.width, oc.height, prevText);
+    setStatus(`Export ${i}/${totalFrames} — ${fmtVal(vStart+(vEnd-vStart)*progress, config.vtype)}`, progress*100);
+    if (i < totalFrames) {
+      setTimeout(() => exportNextFrame(i+1), 1000/config.fps);
+    } else {
+      setTimeout(() => { running = false; mediaRec.stop(); }, 300);
+    }
+  }
+  exportNextFrame(0);
+};
+</script>
