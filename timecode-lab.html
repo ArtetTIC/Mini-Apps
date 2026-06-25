@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Timecode Lab</title>
+<style>
+  :root{
+    --bg:#0a0c0a;
+    --panel:#111510;
+    --panel-edge:#1f2a1e;
+    --amber:#ffb454;
+    --amber-dim:#7a5a2c;
+    --green:#5cd68c;
+    --green-dim:#274a36;
+    --red:#ff5d5d;
+    --ink:#cfd8c8;
+    --ink-dim:#6f7a68;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;}
+  .mono{font-family:'SF Mono','Consolas','DejaVu Sans Mono',monospace;}
+
+  .rack{max-width:880px;margin:0 auto;padding:28px 18px 60px;}
+
+  header.top{display:flex;align-items:baseline;justify-content:space-between;
+    border-bottom:1px solid var(--panel-edge);padding-bottom:14px;margin-bottom:22px;}
+  header.top h1{font-size:18px;letter-spacing:.12em;text-transform:uppercase;
+    font-weight:600;color:var(--amber);margin:0;}
+  header.top .sub{font-size:11px;color:var(--ink-dim);letter-spacing:.05em;}
+
+  nav.tabs{display:flex;gap:2px;margin-bottom:18px;}
+  nav.tabs button{flex:1;background:var(--panel);border:1px solid var(--panel-edge);
+    color:var(--ink-dim);padding:10px 8px;font-size:11px;letter-spacing:.08em;
+    text-transform:uppercase;cursor:pointer;font-family:inherit;}
+  nav.tabs button.active{color:var(--amber);border-color:var(--amber-dim);background:#161a12;}
+
+  .module{display:none;}
+  .module.active{display:block;}
+
+  .panel{background:var(--panel);border:1px solid var(--panel-edge);border-radius:2px;
+    padding:20px;margin-bottom:16px;}
+  .panel .label{font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--ink-dim);margin-bottom:10px;}
+
+  .tc-display{font-size:48px;letter-spacing:.04em;text-align:center;padding:18px 0;
+    color:var(--green);text-shadow:0 0 12px rgba(92,214,140,.35);
+    border:1px solid var(--panel-edge);border-radius:2px;background:#0c0f0a;
+    margin-bottom:16px;user-select:none;}
+  .tc-display.idle{color:#3a4536;text-shadow:none;}
+  .tc-display .ff{font-size:.55em;color:var(--ink-dim);}
+
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px;}
+  .field{display:flex;flex-direction:column;gap:4px;}
+  .field label{font-size:10px;color:var(--ink-dim);letter-spacing:.05em;text-transform:uppercase;}
+  select,input[type=text],input[type=number]{
+    background:#0c0f0a;border:1px solid var(--panel-edge);color:var(--ink);
+    padding:7px 9px;font-size:13px;font-family:inherit;border-radius:2px;}
+  select:focus,input:focus{outline:1px solid var(--amber-dim);}
+
+  button.btn{background:#171c14;border:1px solid var(--panel-edge);color:var(--ink);
+    padding:9px 16px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+    cursor:pointer;border-radius:2px;font-family:inherit;}
+  button.btn:hover{border-color:var(--amber-dim);}
+  button.btn.primary{color:var(--amber);border-color:var(--amber-dim);}
+  button.btn.primary.on{background:var(--amber-dim);color:#0c0f0a;}
+  button.btn.stop{color:var(--red);}
+  button.btn:disabled{opacity:.35;cursor:default;}
+
+  .meter{height:6px;background:#0c0f0a;border:1px solid var(--panel-edge);border-radius:2px;
+    overflow:hidden;margin-top:8px;}
+  .meter .fill{height:100%;width:0%;background:linear-gradient(90deg,var(--green),var(--amber),var(--red));}
+
+  .led-row{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--ink-dim);margin-top:6px;}
+  .led{width:8px;height:8px;border-radius:50%;background:#2a3025;display:inline-block;}
+  .led.on{background:var(--green);box-shadow:0 0 6px var(--green);}
+  .led.on.red{background:var(--red);box-shadow:0 0 6px var(--red);}
+
+  .log{height:160px;overflow-y:auto;background:#0c0f0a;border:1px solid var(--panel-edge);
+    border-radius:2px;padding:8px 10px;font-size:11px;line-height:1.6;color:var(--ink-dim);}
+  .log .e{white-space:nowrap;}
+  .log .e .t{color:var(--amber-dim);margin-right:8px;}
+
+  .hint{font-size:11px;color:var(--ink-dim);line-height:1.5;margin-top:8px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media (max-width:640px){.grid2{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="rack">
+
+  <header class="top">
+    <h1>Timecode Lab</h1>
+    <div class="sub mono">LTC · MTC · MIDI Clock</div>
+  </header>
+
+  <nav class="tabs">
+    <button data-tab="ltcgen" class="active">LTC — Génération</button>
+    <button data-tab="ltcdec">LTC — Lecture</button>
+    <button data-tab="midi">MIDI / MTC</button>
+  </nav>
+
+  <!-- ============ LTC GENERATOR ============ -->
+  <section class="module active" id="ltcgen">
+    <div class="panel">
+      <div class="label">Sortie audio LTC</div>
+      <div class="tc-display mono idle" id="genDisplay">00:00:00<span class="ff">:00</span></div>
+
+      <div class="row">
+        <div class="field">
+          <label>Cadence</label>
+          <select id="genFps">
+            <option value="24">24 fps</option>
+            <option value="25" selected>25 fps (EBU)</option>
+            <option value="29.97df">29.97 fps DF</option>
+            <option value="30">30 fps</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>TC de départ (HH:MM:SS:FF)</label>
+          <input type="text" id="genStart" class="mono" value="00:00:00:00" style="width:140px;">
+        </div>
+        <div class="field">
+          <label>Niveau sortie</label>
+          <input type="number" id="genGain" min="0" max="1" step="0.05" value="0.8" style="width:70px;">
+        </div>
+        <button class="btn primary" id="genToggle">▶ Démarrer</button>
+        <button class="btn" id="genReset">Réinitialiser</button>
+      </div>
+      <div class="hint">Génère un vrai signal LTC (SMPTE biphase mark) sur la sortie audio par défaut du navigateur. Branche la sortie casque/ligne sur l'entrée timecode de ton matériel.</div>
+    </div>
+  </section>
+
+  <!-- ============ LTC DECODER ============ -->
+  <section class="module" id="ltcdec">
+    <div class="panel">
+      <div class="label">Entrée audio LTC</div>
+      <div class="tc-display mono idle" id="decDisplay">--:--:--<span class="ff">:--</span></div>
+
+      <div class="row">
+        <div class="field">
+          <label>Source d'entrée</label>
+          <select id="decInput"><option>— micros/lignes —</option></select>
+        </div>
+        <button class="btn primary" id="decToggle">● Écouter</button>
+      </div>
+      <div class="meter"><div class="fill" id="decMeter"></div></div>
+      <div class="led-row">
+        <span class="led" id="decLockLed"></span> verrouillage de trame
+        <span style="margin-left:16px;" class="mono" id="decFpsInfo">fps —</span>
+      </div>
+      <div class="hint">Branche la sortie ligne du LTC en entrée (ligne/carte son), pas le micro de l'ordi si possible. Le décodage s'aligne automatiquement sur le mot de synchro de la trame ; ça peut prendre 1–2 secondes pour se verrouiller.</div>
+    </div>
+  </section>
+
+  <!-- ============ MIDI / MTC ============ -->
+  <section class="module" id="midi">
+    <div class="panel">
+      <div class="label">Ports MIDI</div>
+      <div class="row">
+        <div class="field">
+          <label>Entrée</label>
+          <select id="midiIn"><option>— aucun port —</option></select>
+        </div>
+        <div class="field">
+          <label>Sortie</label>
+          <select id="midiOut"><option>— aucun port —</option></select>
+        </div>
+        <span class="led-row" style="margin-bottom:8px;"><span class="led" id="midiReadyLed"></span> <span id="midiStatus">Web MIDI non initialisé</span></span>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="panel">
+        <div class="label">Envoyer MTC (Quarter Frame)</div>
+        <div class="tc-display mono idle" id="mtcSendDisplay">00:00:00<span class="ff">:00</span></div>
+        <div class="row">
+          <div class="field">
+            <label>Cadence</label>
+            <select id="mtcFps">
+              <option value="24">24 fps</option>
+              <option value="25" selected>25 fps</option>
+              <option value="29.97df">29.97 fps DF</option>
+              <option value="30">30 fps</option>
+            </select>
+          </div>
+          <button class="btn primary" id="mtcToggle">▶ Envoyer</button>
+        </div>
+        <div class="hint">Quarter-frame MTC standard (0xF1), 4 messages par image.</div>
+      </div>
+
+      <div class="panel">
+        <div class="label">MIDI Clock</div>
+        <div class="row">
+          <div class="field">
+            <label>Tempo (BPM)</label>
+            <input type="number" id="clockBpm" value="120" min="20" max="300" style="width:80px;">
+          </div>
+          <button class="btn primary" id="clockToggle">▶ Start</button>
+        </div>
+        <div class="hint">0xFA Start · 0xF8 Clock (24 ppqn) · 0xFC Stop.</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="label">Réception (MTC décodé + moniteur brut)</div>
+      <div class="tc-display mono idle" id="mtcRecvDisplay">--:--:--<span class="ff">:--</span></div>
+      <div class="log mono" id="midiLog"></div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* ===================== UTIL ===================== */
+function pad2(n){return String(Math.floor(n)).padStart(2,'0');}
+function fpsValue(sel){ return sel.endsWith('df') ? 29.97 : parseFloat(sel); }
+function isDF(sel){ return sel.endsWith('df'); }
+
+function parseTC(str){
+  const m = str.match(/^(\d{1,2}):(\d{1,2}):(\d{1,2}):(\d{1,2})$/);
+  if(!m) return {h:0,m:0,s:0,f:0};
+  return {h:+m[1],m:+m[2],s:+m[3],f:+m[4]};
+}
+function tcString(tc){
+  return `${pad2(tc.h)}:${pad2(tc.m)}:${pad2(tc.s)}`;
+}
+function tcFrameString(tc){ return pad2(tc.f); }
+
+function nextFrame(tc, fps, df){
+  let f=tc.f+1, s=tc.s, m=tc.m, h=tc.h;
+  const maxF = Math.round(df?30:fps);
+  if(f>=maxF){
+    f=0; s++;
+    if(s>=60){ s=0; m++;
+      if(m>=60){ m=0; h++; if(h>=24) h=0; }
+      // drop-frame: skip frames 0 & 1 at start of each minute except every 10th minute
+      if(df && m%10!==0){ f=2; }
+    }
+  }
+  return {h,m,s,f};
+}
+
+function logLine(el, text, cls){
+  const d=document.createElement('div');
+  d.className='e'+(cls?(' '+cls):'');
+  const t=new Date();
+  d.innerHTML = `<span class="t">${pad2(t.getMinutes())}:${pad2(t.getSeconds())}.${String(t.getMilliseconds()).padStart(3,'0')}</span>${text}`;
+  el.appendChild(d);
+  while(el.children.length>200) el.removeChild(el.firstChild);
+  el.scrollTop = el.scrollHeight;
+}
+
+/* ===================== TABS ===================== */
+document.querySelectorAll('nav.tabs button').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.module').forEach(m=>m.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+  });
+});
+
+/* ===================== LTC BIT ENCODING (shared) ===================== */
+function setBits(bits, start, count, value){
+  for(let k=0;k<count;k++) bits[start+k] = (value>>k)&1;
+}
+const SYNC = [0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,1];
+
+function buildLTCFrameBits(tc, dropFrame){
+  const bits = new Array(80).fill(0);
+  setBits(bits,0,4, tc.f%10);
+  setBits(bits,8,2, Math.floor(tc.f/10));
+  bits[10] = dropFrame?1:0;
+  bits[11] = 0;
+  setBits(bits,16,4, tc.s%10);
+  setBits(bits,24,3, Math.floor(tc.s/10));
+  bits[27]=0;
+  setBits(bits,32,4, tc.m%10);
+  setBits(bits,40,3, Math.floor(tc.m/10));
+  bits[43]=0;
+  setBits(bits,48,4, tc.h%10);
+  setBits(bits,56,2, Math.floor(tc.h/10));
+  bits[58]=0; bits[59]=0;
+  for(let i=0;i<16;i++) bits[64+i] = SYNC[i];
+  return bits;
+}
+
+function decodeLTCFrameBits(bits, fallbackFps){
+  const get = (start,count)=>{ let v=0; for(let k=0;k<count;k++) v += (bits[start+k]?1:0)<<k; return v; };
+  const f = get(0,4) + get(8,2)*10;
+  const df = bits[10];
+  const s = get(16,4) + get(24,3)*10;
+  const m = get(32,4) + get(40,3)*10;
+  const h = get(48,4) + get(56,2)*10;
+  return {h,m,s,f,df};
+}
+
+/* ===================== LTC GENERATOR ===================== */
+const genDisplay = document.getElementById('genDisplay');
+const genToggle = document.getElementById('genToggle');
+const genReset = document.getElementById('genReset');
+const genFpsSel = document.getElementById('genFps');
+const genStartInput = document.getElementById('genStart');
+const genGainInput = document.getElementById('genGain');
+
+let genCtx=null, genRunning=false, genTC=null, genNextTime=0, genFrameDur=0, genPolarity=1, genTimer=null, genGain=null;
+
+function genFrameDuration(){ const fps=fpsValue(genFpsSel.value); return 1/fps; }
+
+function scheduleLTCFrame(){
+  const fps = fpsValue(genFpsSel.value);
+  const df = isDF(genFpsSel.value);
+  const sr = genCtx.sampleRate;
+  const samplesPerBit = sr / (fps*80);
+  const totalSamples = Math.round(samplesPerBit*80);
+  const bits = buildLTCFrameBits(genTC, df);
+  const out = new Float32Array(totalSamples);
+  let pol = genPolarity;
+  for(let b=0;b<80;b++){
+    pol = -pol;
+    const bitStart = b*samplesPerBit;
+    const bitMid = bitStart + samplesPerBit/2;
+    const bitEnd = bitStart + samplesPerBit;
+    const i0=Math.round(bitStart), i1=Math.round(bitMid), i2=Math.round(bitEnd);
+    for(let i=i0;i<i1 && i<totalSamples;i++) out[i]=pol;
+    if(bits[b]===1) pol=-pol;
+    for(let i=i1;i<i2 && i<totalSamples;i++) out[i]=pol;
+  }
+  genPolarity = pol;
+  const buf = genCtx.createBuffer(1, totalSamples, sr);
+  buf.copyToChannel(out,0);
+  const src = genCtx.createBufferSource();
+  src.buffer = buf;
+  src.connect(genGain);
+  src.start(genNextTime);
+
+  const showTC = {...genTC};
+  const showTime = genNextTime;
+  setTimeout(()=>{ if(genRunning) renderGenTC(showTC); }, Math.max(0,(showTime-genCtx.currentTime)*1000));
+
+  genNextTime += totalSamples/sr;
+  genTC = nextFrame(genTC, fps, df);
+}
+
+function genSchedulerTick(){
+  if(!genRunning) return;
+  while(genNextTime < genCtx.currentTime + 0.3){
+    scheduleLTCFrame();
+  }
+}
+
+function renderGenTC(tc){
+  genDisplay.innerHTML = `${tcString(tc)}<span class="ff">:${tcFrameString(tc)}</span>`;
+  genDisplay.classList.remove('idle');
+}
+
+genToggle.addEventListener('click', async ()=>{
+  if(!genRunning){
+    if(!genCtx) genCtx = new (window.AudioContext||window.webkitAudioContext)();
+    await genCtx.resume();
+    genGain = genCtx.createGain();
+    genGain.gain.value = parseFloat(genGainInput.value)||0.8;
+    genGain.connect(genCtx.destination);
+    genTC = parseTC(genStartInput.value);
+    genPolarity = 1;
+    genNextTime = genCtx.currentTime + 0.05;
+    genRunning = true;
+    genToggle.textContent = '■ Arrêter';
+    genToggle.classList.add('on');
+    genTimer = setInterval(genSchedulerTick, 100);
+    genSchedulerTick();
+  } else {
+    genRunning = false;
+    clearInterval(genTimer);
+    genToggle.textContent = '▶ Démarrer';
+    genToggle.classList.remove('on');
+    genDisplay.classList.add('idle');
+  }
+});
+genReset.addEventListener('click', ()=>{
+  if(!genRunning){ genStartInput.value='00:00:00:00'; genDisplay.innerHTML='00:00:00<span class="ff">:00</span>'; genDisplay.classList.add('idle'); }
+});
+
+/* ===================== LTC DECODER ===================== */
+const decDisplay = document.getElementById('decDisplay');
+const decToggle = document.getElementById('decToggle');
+const decInputSel = document.getElementById('decInput');
+const decMeter = document.getElementById('decMeter');
+const decLockLed = document.getElementById('decLockLed');
+const decFpsInfo = document.getElementById('decFpsInfo');
+
+let decCtx=null, decRunning=false, decStream=null, decNode=null, decSource=null;
+let decLastSample=0, decSampleIdx=0, decHalfEstimate=null, decBitBuffer=[], decPendingHalf=null;
+
+async function populateAudioInputs(){
+  try{
+    const tmp = await navigator.mediaDevices.getUserMedia({audio:true});
+    tmp.getTracks().forEach(t=>t.stop());
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    decInputSel.innerHTML='';
+    devices.filter(d=>d.kind==='audioinput').forEach(d=>{
+      const o=document.createElement('option'); o.value=d.deviceId; o.textContent=d.label||'Entrée audio'; decInputSel.appendChild(o);
+    });
+  }catch(e){ decInputSel.innerHTML='<option>permission micro refusée</option>'; }
+}
+populateAudioInputs();
+
+function pushBit(bit){
+  decBitBuffer.push(bit);
+  if(decBitBuffer.length>200) decBitBuffer.shift();
+  if(decBitBuffer.length>=80){
+    const last16 = decBitBuffer.slice(-16);
+    if(last16.join('')===SYNC.join('')){
+      const frameBits = decBitBuffer.slice(-80,-16);
+      const fullBits = frameBits.concat(last16);
+      const tc = decodeLTCFrameBits(fullBits);
+      decDisplay.innerHTML = `${tcString(tc)}<span class="ff">:${tcFrameString(tc)}</span>`;
+      decDisplay.classList.remove('idle');
+      decLockLed.classList.add('on');
+      decFpsInfo.textContent = tc.df ? 'DF (29.97)' : 'cadence détectée';
+      decBitBuffer = [];
+    }
+  }
+}
+
+function handleInterval(dtSeconds, sampleRate){
+  if(decHalfEstimate===null){ decHalfEstimate = dtSeconds; return; }
+  const ratio = dtSeconds/decHalfEstimate;
+  if(ratio<1.5){
+    decHalfEstimate = decHalfEstimate*0.98 + dtSeconds*0.02;
+    if(decPendingHalf===null){ decPendingHalf=true; }
+    else { pushBit(1); decPendingHalf=null; }
+  } else {
+    if(decPendingHalf!==null){ decPendingHalf=null; }
+    pushBit(0);
+    decHalfEstimate = decHalfEstimate*0.98 + (dtSeconds/2)*0.02;
+  }
+}
+
+decToggle.addEventListener('click', async ()=>{
+  if(!decRunning){
+    try{
+      const constraints = { audio: decInputSel.value ? {deviceId:{exact:decInputSel.value}} : true };
+      decStream = await navigator.mediaDevices.getUserMedia(constraints);
+    }catch(e){ logLine(document.getElementById('midiLog'),'Erreur micro: '+e.message,'err'); return; }
+    decCtx = new (window.AudioContext||window.webkitAudioContext)();
+    decSource = decCtx.createMediaStreamSource(decStream);
+    decNode = decCtx.createScriptProcessor(2048,1,1);
+    decLastSample = 0; decSampleIdx = 0; decHalfEstimate=null; decBitBuffer=[]; decPendingHalf=null;
+    let lastCrossingIdx = 0;
+    decNode.onaudioprocess = (ev)=>{
+      const data = ev.inputBuffer.getChannelData(0);
+      let peak=0;
+      for(let i=0;i<data.length;i++){
+        const v=data[i];
+        if(Math.abs(v)>peak) peak=Math.abs(v);
+        const cur = v>=0?1:-1;
+        if(cur!==decLastSample){
+          const idx = decSampleIdx+i;
+          const dt = (idx-lastCrossingIdx)/decCtx.sampleRate;
+          if(lastCrossingIdx>0 && dt>0.00005) handleInterval(dt, decCtx.sampleRate);
+          lastCrossingIdx = idx;
+          decLastSample = cur;
+        }
+      }
+      decSampleIdx += data.length;
+      decMeter.style.width = Math.min(100, Math.round(peak*140))+'%';
+    };
+    decSource.connect(decNode);
+    decNode.connect(decCtx.destination===null?decCtx.destination:decCtx.createGain()); // keep graph alive, silent
+    decRunning = true;
+    decToggle.textContent='■ Stop';
+    decToggle.classList.add('on');
+  } else {
+    decRunning = false;
+    if(decNode) decNode.disconnect();
+    if(decSource) decSource.disconnect();
+    if(decStream) decStream.getTracks().forEach(t=>t.stop());
+    if(decCtx) decCtx.close();
+    decToggle.textContent='● Écouter';
+    decToggle.classList.remove('on');
+    decLockLed.classList.remove('on');
+    decDisplay.classList.add('idle');
+    decMeter.style.width='0%';
+  }
+});
+
+/* ===================== MIDI ===================== */
+const midiInSel = document.getElementById('midiIn');
+const midiOutSel = document.getElementById('midiOut');
+const midiReadyLed = document.getElementById('midiReadyLed');
+const midiStatus = document.getElementById('midiStatus');
+const midiLog = document.getElementById('midiLog');
+let midiAccess=null, midiOutPort=null;
+
+if(navigator.requestMIDIAccess){
+  navigator.requestMIDIAccess().then(access=>{
+    midiAccess = access;
+    midiReadyLed.classList.add('on');
+    midiStatus.textContent = 'Web MIDI prêt';
+    refreshMidiPorts();
+    access.onstatechange = refreshMidiPorts;
+  }).catch(()=>{ midiStatus.textContent='Accès MIDI refusé'; midiReadyLed.classList.add('on'); midiReadyLed.classList.add('red'); });
+} else {
+  midiStatus.textContent = 'Web MIDI non supporté par ce navigateur';
+  midiReadyLed.classList.add('on'); midiReadyLed.classList.add('red');
+}
+
+function refreshMidiPorts(){
+  midiInSel.innerHTML=''; midiOutSel.innerHTML='';
+  for(const input of midiAccess.inputs.values()){
+    const o=document.createElement('option'); o.value=input.id; o.textContent=input.name; midiInSel.appendChild(o);
+  }
+  for(const output of midiAccess.outputs.values()){
+    const o=document.createElement('option'); o.value=output.id; o.textContent=output.name; midiOutSel.appendChild(o);
+  }
+  attachMidiInputListeners();
+  updateMidiOutPort();
+}
+function updateMidiOutPort(){
+  midiOutPort = midiAccess ? midiAccess.outputs.get(midiOutSel.value) : null;
+}
+midiOutSel.addEventListener('change', updateMidiOutPort);
+
+function attachMidiInputListeners(){
+  if(!midiAccess) return;
+  for(const input of midiAccess.inputs.values()){
+    input.onmidimessage = onMidiMessage;
+  }
+}
+
+/* --- MTC receive decode --- */
+let mtcRecvNibbles = new Array(8).fill(0);
+let mtcRecvFps = 25;
+function onMidiMessage(ev){
+  const d = ev.data;
+  const hex = Array.from(d).map(b=>b.toString(16).padStart(2,'0')).join(' ');
+  if(d[0]===0xF1){
+    const dataByte = d[1];
+    const piece = dataByte>>4;
+    const value = dataByte&0x0F;
+    mtcRecvNibbles[piece]=value;
+    logLine(midiLog, `MTC qf [${piece}]=${value}  <span class="mono">${hex}</span>`);
+    if(piece===7){
+      const frameUnits = mtcRecvNibbles[0];
+      const frameTensBit = mtcRecvNibbles[1];
+      const f = frameUnits + (frameTensBit&0x1)*16;
+      const s = mtcRecvNibbles[2] + (mtcRecvNibbles[3]&0x3)*16;
+      const m = mtcRecvNibbles[4] + (mtcRecvNibbles[5]&0x3)*16;
+      const hRaw = mtcRecvNibbles[6] + (mtcRecvNibbles[7]&0x1)*16;
+      const h = hRaw & 0x1F;
+      const tc = {h,m,s,f};
+      document.getElementById('mtcRecvDisplay').innerHTML = `${tcString(tc)}<span class="ff">:${tcFrameString(tc)}</span>`;
+      document.getElementById('mtcRecvDisplay').classList.remove('idle');
+    }
+  } else if(d[0]===0xF8){
+    // clock tick - too frequent to log every one
+  } else if(d[0]===0xFA){
+    logLine(midiLog,'MIDI Start');
+  } else if(d[0]===0xFC){
+    logLine(midiLog,'MIDI Stop');
+  } else {
+    logLine(midiLog, `<span class="mono">${hex}</span>`);
+  }
+}
+
+/* --- MTC send --- */
+const mtcSendDisplay = document.getElementById('mtcSendDisplay');
+const mtcToggle = document.getElementById('mtcToggle');
+const mtcFpsSel = document.getElementById('mtcFps');
+let mtcSendRunning=false, mtcTC=null, mtcQFIndex=0, mtcInterval=null;
+
+function mtcFpsCode(sel){
+  // bits 5-6 of hour byte per MTC spec: 00=24,01=25,10=30DF,11=30
+  if(sel==='24') return 0;
+  if(sel==='25') return 1;
+  if(sel==='29.97df') return 2;
+  return 3;
+}
+
+function sendQuarterFrame(piece, value){
+  if(midiOutPort) midiOutPort.send([0xF1, ((piece&0x7)<<4)|(value&0xF)]);
+}
+
+function mtcTick(){
+  const fps = fpsValue(mtcFpsSel.value);
+  const df = isDF(mtcFpsSel.value);
+  const pieces = [
+    mtcTC.f & 0xF,
+    (mtcTC.f>>4)&0x1,
+    mtcTC.s & 0xF,
+    (mtcTC.s>>4)&0x3,
+    mtcTC.m & 0xF,
+    (mtcTC.m>>4)&0x3,
+    mtcTC.h & 0xF,
+    ((mtcTC.h>>4)&0x1) | (mtcFpsCode(mtcFpsSel.value)<<1)
+  ];
+  sendQuarterFrame(mtcQFIndex, pieces[mtcQFIndex]);
+  mtcQFIndex++;
+  if(mtcQFIndex>=8){
+    mtcQFIndex=0;
+    mtcSendDisplay.innerHTML = `${tcString(mtcTC)}<span class="ff">:${tcFrameString(mtcTC)}</span>`;
+    mtcSendDisplay.classList.remove('idle');
+    mtcTC = nextFrame(mtcTC, fps, df);
+  }
+}
+
+mtcToggle.addEventListener('click', ()=>{
+  if(!mtcSendRunning){
+    if(!midiOutPort){ logLine(midiLog,'Aucun port de sortie MIDI sélectionné'); return; }
+    mtcTC = {h:0,m:0,s:0,f:0};
+    mtcQFIndex=0;
+    const fps = fpsValue(mtcFpsSel.value);
+    mtcInterval = setInterval(mtcTick, 1000/(fps*4));
+    mtcSendRunning=true;
+    mtcToggle.textContent='■ Arrêter';
+    mtcToggle.classList.add('on');
+  } else {
+    clearInterval(mtcInterval);
+    mtcSendRunning=false;
+    mtcToggle.textContent='▶ Envoyer';
+    mtcToggle.classList.remove('on');
+    mtcSendDisplay.classList.add('idle');
+  }
+});
+
+/* --- MIDI Clock send --- */
+const clockToggle = document.getElementById('clockToggle');
+const clockBpmInput = document.getElementById('clockBpm');
+let clockRunning=false, clockInterval=null;
+
+clockToggle.addEventListener('click', ()=>{
+  if(!clockRunning){
+    if(!midiOutPort){ logLine(midiLog,'Aucun port de sortie MIDI sélectionné'); return; }
+    midiOutPort.send([0xFA]);
+    const bpm = parseFloat(clockBpmInput.value)||120;
+    const ms = 60000/bpm/24;
+    clockInterval = setInterval(()=>{ if(midiOutPort) midiOutPort.send([0xF8]); }, ms);
+    clockRunning=true;
+    clockToggle.textContent='■ Stop';
+    clockToggle.classList.add('on');
+  } else {
+    clearInterval(clockInterval);
+    if(midiOutPort) midiOutPort.send([0xFC]);
+    clockRunning=false;
+    clockToggle.textContent='▶ Start';
+    clockToggle.classList.remove('on');
+  }
+});
+</script>
+</body>
+</html>
