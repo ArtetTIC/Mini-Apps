@@ -417,16 +417,70 @@
     };
   }
 
-  function loadData(){
-    try{
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if(!raw) return defaultData();
-      return Object.assign(defaultData(), JSON.parse(raw));
-    }catch(e){ return defaultData(); }
-  }
-  function saveData(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+  //const STORAGE_KEY = "resourceListingData_v2"; // gardé pour compat admin si besoin
 
-  let data = loadData();
+function defaultData(){
+  return {
+    bgColor: "#11141a",
+    titleColor: "#eef1f6",
+    cardBg: "rgba(255,255,255,0.05)",
+    cardBgHover: "rgba(255,255,255,0.09)",
+    linkColor: "#eef1f6",
+    linkHoverColor: "#5b8cff",
+    gameBg: "#0a0c10",
+    playerColor: "#5b8cff",
+    cpuColor: "#ff6b6b",
+    ballColor: "#ffffff",
+    difficulty: 3,
+    title: "Mes ressources",
+    logo: "",
+    resources: []
+  };
+}
+
+/* =========================
+   CHARGEMENT UNIQUE (JSON)
+========================= */
+async function loadData(){
+  try {
+    const res = await fetch("./resources.json", { cache: "no-cache" });
+
+    if (!res.ok) throw new Error("HTTP " + res.status);
+
+    const json = await res.json();
+
+    data = {
+      ...defaultData(),
+      ...json
+    };
+
+  } catch (e) {
+    console.error("Erreur chargement JSON:", e);
+    data = defaultData();
+  }
+
+  applyAppearance();
+  renderResourceList();
+  renderExistingList?.(); // safe si pas encore ouvert admin
+}
+
+/* =========================
+   SAVE (optionnel fallback local)
+   -> utile uniquement pour admin local
+========================= */
+function saveData(){
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (e) {
+    console.warn("Save localStorage impossible", e);
+  }
+}
+
+/* =========================
+   INIT
+========================= */
+let data = defaultData();
+loadData();
 
   // ---------- rendu ----------
   function applyAppearance(){
