@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Listing de ressources</title>
+<style>
+  :root{
+    --bg-color: #11141a;
+    --text-color: #eef1f6;
+    --title-color: #eef1f6;
+    --card-bg: rgba(255,255,255,0.05);
+    --card-bg-hover: rgba(255,255,255,0.09);
+    --card-border: rgba(255,255,255,0.12);
+    --link-color: #eef1f6;
+    --link-hover-color: #5b8cff;
+    --game-bg: #0a0c10;
+    --player-color: #5b8cff;
+    --cpu-color: #ff6b6b;
+    --ball-color: #ffffff;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg-color);
+    color: var(--text-color);
+    min-height:100vh;
+    transition: background .3s ease;
+  }
+  header{
+    position:relative;
+    padding: 28px 32px 18px 32px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:14px;
+  }
+  #logoImg{
+    max-height:56px;
+    max-width:160px;
+    object-fit:contain;
+    border-radius:8px;
+    display:none;
+  }
+  #pageTitle{
+    font-size: 1.9rem;
+    font-weight:700;
+    margin:0;
+    letter-spacing:.3px;
+    color: var(--title-color);
+    text-align:center;
+  }
+  /* carré caché admin */
+  #adminTrigger{
+    position:absolute;
+    top:14px;
+    right:14px;
+    width:22px;
+    height:22px;
+    background: var(--bg-color);
+    border:none;
+    cursor:pointer;
+    border-radius:4px;
+    z-index:50;
+  }
+  #adminTrigger:focus{ outline: 1px dashed rgba(255,255,255,.2); }
+
+  /* zone jeu pong */
+  #gameWrap{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:8px;
+  }
+  #gameCanvas{
+    background: var(--game-bg);
+    border-radius:14px;
+    border:1px solid rgba(255,255,255,.15);
+    touch-action:none;
+    cursor:none;
+    width: min(560px, 90vw);
+    height: calc(min(560px, 90vw) * 0.55);
+  }
+  #gameScore{
+    font-size:.85rem;
+    opacity:.7;
+    letter-spacing:.5px;
+  }
+
+  main{
+    padding: 10px 32px 60px 32px;
+    max-width: 980px;
+    margin: 0 auto;
+  }
+  .resource-list{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    margin-top:24px;
+  }
+  .resource-item{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background: var(--card-bg);
+    border:1px solid var(--card-border);
+    border-radius:10px;
+    padding:14px 18px;
+    transition: transform .15s ease, background .15s ease;
+  }
+  .resource-item:hover{
+    transform: translateX(4px);
+    background: var(--card-bg-hover);
+  }
+  .resource-link{
+    color: var(--link-color);
+    font-size:1.05rem;
+    font-weight:600;
+    text-decoration:none;
+    cursor: help;
+    position:relative;
+  }
+  .resource-link:hover{ color: var(--link-hover-color); }
+  .empty-state{
+    text-align:center;
+    opacity:.55;
+    padding:60px 0;
+    font-size:1rem;
+  }
+
+  /* Overlay admin (mot de passe) */
+  #pinOverlay{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.7);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:110;
+    padding:20px;
+  }
+  #pinOverlay.open{ display:flex; }
+  #pinPanel{
+    background:#1b1f29;
+    color:#eef1f6;
+    width:100%;
+    max-width:280px;
+    border-radius:14px;
+    padding:24px;
+    box-shadow:0 20px 60px rgba(0,0,0,.5);
+    text-align:center;
+  }
+  #pinPanel h3{ margin:0 0 14px; font-size:1rem; }
+  #pinDots{
+    display:flex;
+    justify-content:center;
+    gap:10px;
+    margin-bottom:18px;
+  }
+  .pin-dot{
+    width:12px;
+    height:12px;
+    border-radius:50%;
+    border:1px solid rgba(255,255,255,.4);
+    background:transparent;
+  }
+  .pin-dot.filled{ background:#5b8cff; border-color:#5b8cff; }
+  #pinPad{
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap:8px;
+  }
+  #pinPad button{
+    background:#11141a;
+    border:1px solid rgba(255,255,255,.12);
+    color:#eef1f6;
+    font-size:1.1rem;
+    padding:14px 0;
+    border-radius:10px;
+    cursor:pointer;
+  }
+  #pinPad button:hover{ background:#22272f; }
+  #pinPad button.wide{ grid-column: span 1; font-size:.85rem; opacity:.75; }
+  #pinError{ color:#ff7a7a; font-size:.75rem; height:16px; margin-top:8px; }
+
+  /* Overlay admin (panneau) */
+  #adminOverlay{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.6);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:100;
+    padding:20px;
+  }
+  #adminOverlay.open{ display:flex; }
+  #adminPanel{
+    background:#1b1f29;
+    color:#eef1f6;
+    width:100%;
+    max-width:600px;
+    max-height:90vh;
+    overflow-y:auto;
+    border-radius:14px;
+    padding:26px 28px;
+    box-shadow:0 20px 60px rgba(0,0,0,.5);
+    font-family: inherit;
+    position:relative;
+  }
+  #adminPanel h2{ margin-top:0; font-size:1.3rem; }
+  #adminPanel h3{
+    font-size:1rem;
+    margin:22px 0 10px;
+    border-top:1px solid rgba(255,255,255,.1);
+    padding-top:18px;
+  }
+  .field{ display:flex; flex-direction:column; gap:4px; margin-bottom:12px; }
+  .field label{ font-size:.8rem; opacity:.75; }
+  .field input[type=text], .field input[type=url], .field textarea{
+    background:#11141a;
+    border:1px solid rgba(255,255,255,.15);
+    color:#eef1f6;
+    border-radius:8px;
+    padding:9px 11px;
+    font-size:.9rem;
+    font-family:inherit;
+    resize:vertical;
+  }
+  .row{ display:flex; gap:10px; flex-wrap:wrap; }
+  .row .field{ flex:1; min-width:140px; }
+  button.btn{
+    background: var(--player-color, #5b8cff);
+    border:none;
+    color:#fff;
+    padding:10px 16px;
+    border-radius:8px;
+    cursor:pointer;
+    font-size:.9rem;
+    font-weight:600;
+  }
+  button.btn.secondary{ background:transparent; border:1px solid rgba(255,255,255,.25); color:#eef1f6; }
+  button.btn.danger{ background:#e85b5b; }
+  .existing-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:#11141a;
+    border-radius:8px;
+    padding:8px 12px;
+    margin-bottom:6px;
+    font-size:.85rem;
+  }
+  .existing-row span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:300px; }
+  .close-admin{
+    position:absolute;
+    top:14px;
+    right:16px;
+    background:none;
+    border:none;
+    color:#eef1f6;
+    font-size:1.3rem;
+    cursor:pointer;
+    opacity:.6;
+  }
+  .close-admin:hover{ opacity:1; }
+  input[type=color]{
+    -webkit-appearance:none;
+    width:42px;
+    height:32px;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    background:none;
+    padding:0;
+  }
+  .color-field{ display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .color-field label{ font-size:.7rem; opacity:.7; text-align:center; }
+  .color-grid{ display:flex; gap:14px; flex-wrap:wrap; margin-top:6px; }
+  .file-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .small-note{ font-size:.75rem; opacity:.55; margin-top:-4px; }
+  .field input[type=range]{ width:100%; }
+</style>
+</head>
+<body>
+
+<header>
+  <button id="adminTrigger" title=""></button>
+
+  <div id="gameWrap">
+    <canvas id="gameCanvas" width="560" height="308"></canvas>
+    <div id="gameScore">Toi 0 — 0 Ordi</div>
+  </div>
+
+  <img id="logoImg" alt="logo">
+  <h1 id="pageTitle">Mes ressources</h1>
+</header>
+
+<main>
+  <div id="resourceList" class="resource-list"></div>
+</main>
+
+<!-- OVERLAY PIN -->
+<div id="pinOverlay">
+  <div id="pinPanel">
+    <h3>Code admin</h3>
+    <div id="pinDots">
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+    </div>
+    <div id="pinPad">
+      <button data-key="1">1</button>
+      <button data-key="2">2</button>
+      <button data-key="3">3</button>
+      <button data-key="4">4</button>
+      <button data-key="5">5</button>
+      <button data-key="6">6</button>
+      <button data-key="7">7</button>
+      <button data-key="8">8</button>
+      <button data-key="9">9</button>
+      <button class="wide" id="pinCancel">Annuler</button>
+      <button data-key="0">0</button>
+      <button class="wide" id="pinBack">&#9003;</button>
+    </div>
+    <div id="pinError"></div>
+  </div>
+</div>
+
+<!-- OVERLAY ADMIN -->
+<div id="adminOverlay">
+  <div id="adminPanel">
+    <button class="close-admin" id="closeAdmin">&times;</button>
+    <h2>Zone admin</h2>
+
+    <h3>Page</h3>
+    <div class="field">
+      <label for="titleInput">Titre de la page</label>
+      <input type="text" id="titleInput" placeholder="Mes ressources">
+    </div>
+    <div class="field">
+      <label>Logo</label>
+      <div class="file-row">
+        <input type="file" id="logoInput" accept="image/*">
+        <button class="btn secondary" id="removeLogoBtn" type="button">Retirer le logo</button>
+      </div>
+    </div>
+
+    <h3>Couleurs — page &amp; liste</h3>
+    <div class="color-grid">
+      <div class="color-field"><input type="color" id="bgColorInput"><label>Fond de page</label></div>
+      <div class="color-field"><input type="color" id="titleColorInput"><label>Titre</label></div>
+      <div class="color-field"><input type="color" id="cardBgInput"><label>Fond des zones liens</label></div>
+      <div class="color-field"><input type="color" id="cardBgHoverInput"><label>Fond zones (survol)</label></div>
+      <div class="color-field"><input type="color" id="linkColorInput"><label>Texte des liens</label></div>
+      <div class="color-field"><input type="color" id="linkHoverColorInput"><label>Texte liens (survol)</label></div>
+    </div>
+
+    <h3>Couleurs — mini-jeu</h3>
+    <div class="color-grid">
+      <div class="color-field"><input type="color" id="gameBgInput"><label>Fond du jeu</label></div>
+      <div class="color-field"><input type="color" id="playerColorInput"><label>Ta raquette</label></div>
+      <div class="color-field"><input type="color" id="cpuColorInput"><label>Raquette ordi</label></div>
+      <div class="color-field"><input type="color" id="ballColorInput"><label>Balle</label></div>
+    </div>
+
+    <div class="field" style="margin-top:18px;">
+      <label for="difficultyInput">Difficulté de l'ordi (1 = facile, 10 = difficile)</label>
+      <input type="range" id="difficultyInput" min="1" max="10" step="1">
+    </div>
+
+    <h3>Ajouter une ressource</h3>
+    <div class="field">
+      <label for="newName">Nom (affiché)</label>
+      <input type="text" id="newName" placeholder="Mon super projet">
+    </div>
+    <div class="field">
+      <label for="newUrl">Lien</label>
+      <input type="url" id="newUrl" placeholder="https://...">
+    </div>
+    <div class="field">
+      <label for="newDesc">Description (info-bulle au survol)</label>
+      <textarea id="newDesc" rows="2" placeholder="Petite description du projet"></textarea>
+    </div>
+    <button class="btn" id="addResourceBtn">Ajouter la ressource</button>
+
+    <h3>Ressources existantes</h3>
+    <div id="existingList"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const STORAGE_KEY = "resourceListingData_v2";
+  const ADMIN_PIN = "0602";
+
+  function defaultData(){
+    return {
+      bgColor: "#11141a",
+      titleColor: "#eef1f6",
+      cardBg: "rgba(255,255,255,0.05)",
+      cardBgHover: "rgba(255,255,255,0.09)",
+      linkColor: "#eef1f6",
+      linkHoverColor: "#5b8cff",
+      gameBg: "#0a0c10",
+      playerColor: "#5b8cff",
+      cpuColor: "#ff6b6b",
+      ballColor: "#ffffff",
+      difficulty: 3,
+      title: "Mes ressources",
+      logo: "",
+      resources: []
+    };
+  }
+
+  function loadData(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return defaultData();
+      return Object.assign(defaultData(), JSON.parse(raw));
+    }catch(e){ return defaultData(); }
+  }
+  function saveData(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+
+  let data = loadData();
+
+  // ---------- rendu ----------
+  function applyAppearance(){
+    const root = document.documentElement.style;
+    root.setProperty('--bg-color', data.bgColor);
+    root.setProperty('--title-color', data.titleColor);
+    root.setProperty('--card-bg', data.cardBg);
+    root.setProperty('--card-bg-hover', data.cardBgHover);
+    root.setProperty('--link-color', data.linkColor);
+    root.setProperty('--link-hover-color', data.linkHoverColor);
+    root.setProperty('--game-bg', data.gameBg);
+    root.setProperty('--player-color', data.playerColor);
+    root.setProperty('--cpu-color', data.cpuColor);
+    root.setProperty('--ball-color', data.ballColor);
+
+    document.getElementById('adminTrigger').style.background = data.bgColor;
+    document.title = data.title || "Listing de ressources";
+    document.getElementById('pageTitle').textContent = data.title || "Mes ressources";
+
+    const logoImg = document.getElementById('logoImg');
+    if(data.logo){ logoImg.src = data.logo; logoImg.style.display = 'block'; }
+    else { logoImg.style.display = 'none'; }
+  }
+
+  function renderResourceList(){
+    const container = document.getElementById('resourceList');
+    container.innerHTML = '';
+    if(!data.resources.length){
+      container.innerHTML = '<div class="empty-state">Aucune ressource pour le moment.</div>';
+      return;
+    }
+    data.resources.forEach(res => {
+      const item = document.createElement('div');
+      item.className = 'resource-item';
+      const link = document.createElement('a');
+      link.className = 'resource-link';
+      link.href = res.url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = res.name;
+      if(res.desc) link.title = res.desc;
+      item.appendChild(link);
+      container.appendChild(item);
+    });
+  }
+
+  function renderExistingList(){
+    const list = document.getElementById('existingList');
+    list.innerHTML = '';
+    if(!data.resources.length){
+      list.innerHTML = '<div class="small-note">Aucune ressource enregistrée.</div>';
+      return;
+    }
+    data.resources.forEach((res, idx) => {
+      const row = document.createElement('div');
+      row.className = 'existing-row';
+      row.innerHTML = `<span>${escapeHtml(res.name)}</span>`;
+      const delBtn = document.createElement('button');
+      delBtn.className = 'btn danger';
+      delBtn.textContent = 'Supprimer';
+      delBtn.style.padding = '4px 10px';
+      delBtn.style.fontSize = '.75rem';
+      delBtn.addEventListener('click', () => {
+        data.resources.splice(idx,1);
+        saveData(); renderResourceList(); renderExistingList();
+      });
+      row.appendChild(delBtn);
+      list.appendChild(row);
+    });
+  }
+
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // ---------- PIN / accès admin ----------
+  const pinOverlay = document.getElementById('pinOverlay');
+  const adminOverlay = document.getElementById('adminOverlay');
+  let pinBuffer = "";
+
+  function updatePinDots(){
+    document.querySelectorAll('.pin-dot').forEach((dot, i) => {
+      dot.classList.toggle('filled', i < pinBuffer.length);
+    });
+  }
+  function resetPin(){
+    pinBuffer = "";
+    updatePinDots();
+    document.getElementById('pinError').textContent = "";
+  }
+
+  document.getElementById('adminTrigger').addEventListener('click', () => {
+    resetPin();
+    pinOverlay.classList.add('open');
+  });
+
+  document.getElementById('pinPad').addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if(!btn) return;
+    if(btn.id === 'pinCancel'){ pinOverlay.classList.remove('open'); return; }
+    if(btn.id === 'pinBack'){ pinBuffer = pinBuffer.slice(0,-1); updatePinDots(); return; }
+    const key = btn.getAttribute('data-key');
+    if(key === null) return;
+    if(pinBuffer.length >= 4) return;
+    pinBuffer += key;
+    updatePinDots();
+    if(pinBuffer.length === 4){
+      if(pinBuffer === ADMIN_PIN){
+        pinOverlay.classList.remove('open');
+        openAdminPanel();
+      } else {
+        document.getElementById('pinError').textContent = "Code incorrect";
+        setTimeout(resetPin, 450);
+      }
+    }
+  });
+
+  function openAdminPanel(){
+    document.getElementById('titleInput').value = data.title;
+    document.getElementById('bgColorInput').value = data.bgColor;
+    document.getElementById('titleColorInput').value = data.titleColor;
+    document.getElementById('cardBgInput').value = rgbaToHex(data.cardBg);
+    document.getElementById('cardBgHoverInput').value = rgbaToHex(data.cardBgHover);
+    document.getElementById('linkColorInput').value = data.linkColor;
+    document.getElementById('linkHoverColorInput').value = data.linkHoverColor;
+    document.getElementById('gameBgInput').value = data.gameBg;
+    document.getElementById('playerColorInput').value = data.playerColor;
+    document.getElementById('cpuColorInput').value = data.cpuColor;
+    document.getElementById('ballColorInput').value = data.ballColor;
+    document.getElementById('difficultyInput').value = data.difficulty;
+    renderExistingList();
+    adminOverlay.classList.add('open');
+  }
+
+  function rgbaToHex(rgba){
+    // si déjà hex, renvoyer tel quel
+    if(rgba.startsWith('#')) return rgba;
+    const m = rgba.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+    if(!m) return '#ffffff';
+    const r = parseInt(m[1]).toString(16).padStart(2,'0');
+    const g = parseInt(m[2]).toString(16).padStart(2,'0');
+    const b = parseInt(m[3]).toString(16).padStart(2,'0');
+    return `#${r}${g}${b}`;
+  }
+
+  document.getElementById('closeAdmin').addEventListener('click', () => adminOverlay.classList.remove('open'));
+  adminOverlay.addEventListener('click', (e) => { if(e.target === adminOverlay) adminOverlay.classList.remove('open'); });
+  pinOverlay.addEventListener('click', (e) => { if(e.target === pinOverlay) pinOverlay.classList.remove('open'); });
+
+  // ---------- bindings admin ----------
+  function bindColor(id, key){
+    document.getElementById(id).addEventListener('input', (e) => {
+      data[key] = e.target.value;
+      saveData(); applyAppearance();
+    });
+  }
+  bindColor('bgColorInput', 'bgColor');
+  bindColor('titleColorInput', 'titleColor');
+  bindColor('cardBgInput', 'cardBg');
+  bindColor('cardBgHoverInput', 'cardBgHover');
+  bindColor('linkColorInput', 'linkColor');
+  bindColor('linkHoverColorInput', 'linkHoverColor');
+  bindColor('gameBgInput', 'gameBg');
+  bindColor('playerColorInput', 'playerColor');
+  bindColor('cpuColorInput', 'cpuColor');
+  bindColor('ballColorInput', 'ballColor');
+
+  document.getElementById('difficultyInput').addEventListener('input', (e) => {
+    data.difficulty = parseInt(e.target.value, 10);
+    saveData();
+  });
+
+  document.getElementById('titleInput').addEventListener('input', (e) => {
+    data.title = e.target.value;
+    saveData(); applyAppearance();
+  });
+
+  document.getElementById('logoInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev){
+      data.logo = ev.target.result;
+      saveData(); applyAppearance();
+    };
+    reader.readAsDataURL(file);
+  });
+
+  document.getElementById('removeLogoBtn').addEventListener('click', () => {
+    data.logo = '';
+    saveData(); applyAppearance();
+    document.getElementById('logoInput').value = '';
+  });
+
+  document.getElementById('addResourceBtn').addEventListener('click', () => {
+    const name = document.getElementById('newName').value.trim();
+    const url = document.getElementById('newUrl').value.trim();
+    const desc = document.getElementById('newDesc').value.trim();
+    if(!name || !url){ alert('Merci de renseigner au moins un nom et un lien.'); return; }
+    data.resources.push({name, url, desc});
+    saveData(); renderResourceList(); renderExistingList();
+    document.getElementById('newName').value = '';
+    document.getElementById('newUrl').value = '';
+    document.getElementById('newDesc').value = '';
+  });
+
+  applyAppearance();
+  renderResourceList();
+
+  // =====================================================
+  // MINI JEU : Air hockey / Pong contre l'ordinateur
+  // =====================================================
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  const paddleW = 12, paddleH = 70;
+  const player = { x: 14, y: H/2 - paddleH/2, w: paddleW, h: paddleH };
+  const cpu = { x: W - 14 - paddleW, y: H/2 - paddleH/2, w: paddleW, h: paddleH };
+  const ball = { x: W/2, y: H/2, r: 8, vx: 3.2, vy: 2.2 };
+  let scorePlayer = 0, scoreCpu = 0;
+
+  function cpuSpeedFromDifficulty(){
+    // difficulty 1 -> très lent / 10 -> rapide. Reste plus faible que par défaut avant.
+    return 1 + (data.difficulty || 3) * 0.35;
+  }
+  function cpuReactionError(){
+    // plus la difficulté est basse, plus l'IA "rate" le centrage
+    const maxErr = 36 - (data.difficulty || 3) * 3;
+    return (Math.random() * 2 - 1) * Math.max(4, maxErr);
+  }
+
+  function resetBall(direction){
+    ball.x = W/2; ball.y = H/2;
+    const angle = (Math.random() * 0.6 - 0.3);
+    const speed = 3.2;
+    ball.vx = Math.cos(angle) * speed * direction;
+    ball.vy = Math.sin(angle) * speed * (Math.random() > 0.5 ? 1 : -1);
+  }
+
+  function getCanvasScale(){
+    const rect = canvas.getBoundingClientRect();
+    return { sx: W / rect.width, sy: H / rect.height, rect };
+  }
+
+  canvas.addEventListener('mousemove', (e) => {
+    const {sy, rect} = getCanvasScale();
+    const y = (e.clientY - rect.top) * sy;
+    player.y = Math.min(H - player.h, Math.max(0, y - player.h/2));
+  });
+  canvas.addEventListener('touchmove', (e) => {
+    const {sy, rect} = getCanvasScale();
+    const touch = e.touches[0];
+    const y = (touch.clientY - rect.top) * sy;
+    player.y = Math.min(H - player.h, Math.max(0, y - player.h/2));
+    e.preventDefault();
+  }, {passive:false});
+
+  function updateScoreDisplay(){
+    document.getElementById('gameScore').textContent = `Toi ${scorePlayer} — ${scoreCpu} Ordi`;
+  }
+
+  let cpuTargetOffset = 0;
+  let cpuRetargetTimer = 0;
+
+  function gameLoop(){
+    // l'IA ne recalcule sa cible qu'à intervalles, et avec une erreur -> la rend battable
+    cpuRetargetTimer--;
+    if(cpuRetargetTimer <= 0){
+      cpuTargetOffset = cpuReactionError();
+      cpuRetargetTimer = 14;
+    }
+    const cpuSpeed = cpuSpeedFromDifficulty();
+    const targetY = ball.y + cpuTargetOffset;
+    const cpuCenter = cpu.y + cpu.h/2;
+    if(cpuCenter < targetY - 6) cpu.y += cpuSpeed;
+    else if(cpuCenter > targetY + 6) cpu.y -= cpuSpeed;
+    cpu.y = Math.min(H - cpu.h, Math.max(0, cpu.y));
+
+    ball.x += ball.vx;
+    ball.y += ball.vy;
+
+    if(ball.y - ball.r < 0){ ball.y = ball.r; ball.vy *= -1; }
+    if(ball.y + ball.r > H){ ball.y = H - ball.r; ball.vy *= -1; }
+
+    if(ball.x - ball.r < player.x + player.w &&
+       ball.y > player.y && ball.y < player.y + player.h &&
+       ball.vx < 0){
+      ball.vx *= -1.05;
+      ball.vy += (ball.y - (player.y + player.h/2)) * 0.05;
+    }
+
+    if(ball.x + ball.r > cpu.x &&
+       ball.y > cpu.y && ball.y < cpu.y + cpu.h &&
+       ball.vx > 0){
+      ball.vx *= -1.05;
+      ball.vy += (ball.y - (cpu.y + cpu.h/2)) * 0.05;
+    }
+
+    const maxSpeed = 8;
+    ball.vx = Math.max(-maxSpeed, Math.min(maxSpeed, ball.vx));
+    ball.vy = Math.max(-maxSpeed, Math.min(maxSpeed, ball.vy));
+
+    if(ball.x < -14){ scoreCpu++; updateScoreDisplay(); resetBall(1); }
+    if(ball.x > W + 14){ scorePlayer++; updateScoreDisplay(); resetBall(-1); }
+
+    draw();
+    requestAnimationFrame(gameLoop);
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.setLineDash([6,6]);
+    ctx.beginPath();
+    ctx.moveTo(W/2,0); ctx.lineTo(W/2,H);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = data.playerColor;
+    roundRect(ctx, player.x, player.y, player.w, player.h, 5); ctx.fill();
+    ctx.fillStyle = data.cpuColor;
+    roundRect(ctx, cpu.x, cpu.y, cpu.w, cpu.h, 5); ctx.fill();
+
+    ctx.fillStyle = data.ballColor;
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  function roundRect(c, x, y, w, h, r){
+    c.beginPath();
+    c.moveTo(x+r, y);
+    c.arcTo(x+w, y, x+w, y+h, r);
+    c.arcTo(x+w, y+h, x, y+h, r);
+    c.arcTo(x, y+h, x, y, r);
+    c.arcTo(x, y, x+w, y, r);
+    c.closePath();
+  }
+
+  updateScoreDisplay();
+  resetBall(1);
+  requestAnimationFrame(gameLoop);
+
+})();
+</script>
+</body>
+</html>
