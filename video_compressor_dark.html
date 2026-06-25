@@ -1,0 +1,513 @@
+
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg0:#0d0d0e;--bg1:#141416;--bg2:#1c1c1f;--bg3:#242428;--bg4:#2e2e33;
+  --brd:#2a2a2f;--brd2:#38383f;--brd3:#4a4a52;
+  --ink:#f0ede6;--ink2:#9a9490;--ink3:#5c5855;
+  --gold:#c9a84c;--gold2:#e8c96a;--gold3:#f5e0a0;--gold-bg:rgba(201,168,76,0.08);--gold-brd:rgba(201,168,76,0.25);
+  --green:#3a8a5c;--green-bg:rgba(58,138,92,0.12);
+  --red:#9a3a3a;--red-bg:rgba(154,58,58,0.12);
+  --r:14px;--r2:9px;--r3:22px;
+}
+body{font-family:'DM Sans',sans-serif;background:transparent;color:var(--ink)}
+
+.wrap{padding:1.75rem 0 2.5rem;max-width:660px}
+
+.header{display:flex;align-items:center;gap:14px;margin-bottom:2rem}
+.header-icon{width:36px;height:36px;border-radius:8px;background:var(--gold-bg);border:1px solid var(--gold-brd);display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--gold)}
+.header h1{font-size:17px;font-weight:500;letter-spacing:-0.02em;color:var(--ink)}
+.header span{font-size:12px;color:var(--ink3);margin-left:auto;font-family:'DM Mono',monospace}
+
+.drop-label{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  border:1px dashed var(--brd2);border-radius:var(--r);
+  padding:2.75rem 1.5rem;text-align:center;cursor:pointer;
+  background:var(--bg1);
+  transition:border-color .2s,background .2s;
+  gap:12px;position:relative;overflow:hidden;
+}
+.drop-label::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 60% 40% at 50% 0%,rgba(201,168,76,0.04),transparent);pointer-events:none}
+.drop-label:hover,.drop-label.over{border-color:var(--gold-brd);background:var(--bg2)}
+.drop-label input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
+.drop-icon-ring{width:52px;height:52px;border-radius:50%;background:var(--bg3);border:1px solid var(--brd2);display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--ink3)}
+.drop-label strong{font-size:14px;font-weight:500;color:var(--ink)}
+.drop-label p{font-size:12px;color:var(--ink3);line-height:1.6}
+
+.filebar{display:flex;align-items:center;gap:10px;padding:11px 14px;border:1px solid var(--brd);border-radius:var(--r2);background:var(--bg2);margin-top:10px}
+.filebar-icon{width:32px;height:32px;border-radius:6px;background:var(--gold-bg);border:1px solid var(--gold-brd);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--gold);flex-shrink:0}
+.filebar-name{flex:1;font-size:13px;font-weight:400;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.filebar-size{font-size:12px;color:var(--ink3);font-family:'DM Mono',monospace;flex-shrink:0}
+
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
+.metric{border:1px solid var(--brd);border-radius:var(--r2);padding:14px 16px;background:var(--bg1)}
+.metric .lbl{font-size:10px;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}
+.metric .val{font-size:21px;font-weight:300;letter-spacing:-0.03em;font-family:'DM Mono',monospace;color:var(--ink)}
+.metric .sub{font-size:11px;color:var(--ink3);margin-top:4px}
+.metric.good{border-color:rgba(58,138,92,0.3);background:var(--green-bg)}
+.metric.good .val{color:#5eba84}
+.metric.gold{border-color:var(--gold-brd);background:var(--gold-bg)}
+.metric.gold .val{color:var(--gold2)}
+
+.divider{display:flex;align-items:center;gap:10px;margin:1.5rem 0 1rem}
+.divider span{font-size:10px;color:var(--ink3);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--brd)}
+
+.codec-pills{display:flex;gap:6px}
+.codec-pill{flex:1;padding:9px 0;font-size:12px;font-weight:500;text-align:center;border:1px solid var(--brd);border-radius:var(--r2);cursor:pointer;background:var(--bg2);color:var(--ink3);transition:all .15s;user-select:none;letter-spacing:.01em}
+.codec-pill:hover{border-color:var(--brd3);color:var(--ink)}
+.codec-pill.active{background:var(--gold-bg);color:var(--gold2);border-color:var(--gold-brd)}
+.codec-hint{font-size:11px;color:var(--ink3);margin-top:8px;line-height:1.6;padding:0 2px}
+
+.field{margin-bottom:1rem}
+.field-head{display:flex;align-items:center;margin-bottom:9px}
+.field-head label{font-size:13px;color:var(--ink2);flex:0 0 120px}
+.tag{font-size:11px;padding:3px 9px;border-radius:var(--r3);font-family:'DM Mono',monospace;background:var(--bg3);color:var(--gold);border:1px solid var(--gold-brd);margin-left:auto}
+.field-row{display:flex;align-items:center;gap:12px}
+input[type=range]{flex:1;-webkit-appearance:none;appearance:none;height:3px;border-radius:2px;background:var(--bg4);outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--gold2);border:2px solid var(--bg0);cursor:pointer}
+input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--gold2);border:2px solid var(--bg0);cursor:pointer}
+.field-desc{font-size:11px;color:var(--ink3);margin-top:6px;padding-left:120px;line-height:1.5}
+.crf-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--ink3);font-family:'DM Mono',monospace;margin-top:5px;padding:0 1px}
+
+select{width:100%;font-size:13px;font-family:'DM Sans',sans-serif;padding:9px 32px 9px 12px;border:1px solid var(--brd);border-radius:var(--r2);background:var(--bg2);color:var(--ink);appearance:none;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%235c5855' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 11px center}
+select:focus{outline:none;border-color:var(--gold-brd)}
+
+.progress-block{margin:14px 0}
+.progress-track{height:2px;background:var(--bg4);border-radius:2px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold2));border-radius:2px;width:0%;transition:width .35s}
+.progress-info{display:flex;justify-content:space-between;margin-top:7px}
+.progress-info span{font-size:11px;color:var(--ink3);font-family:'DM Mono',monospace}
+.log{font-family:'DM Mono',monospace;font-size:10px;color:var(--ink3);background:var(--bg2);border:1px solid var(--brd);border-radius:var(--r2);padding:9px 12px;max-height:52px;overflow-y:auto;margin-top:9px;line-height:1.7}
+
+.actions{display:flex;gap:8px;margin-top:1.5rem}
+.btn-main{
+  flex:1;padding:12px 20px;font-size:14px;font-weight:500;font-family:'DM Sans',sans-serif;
+  background:var(--gold);color:#0d0d0e;
+  border:none;border-radius:var(--r2);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:background .15s,opacity .15s;letter-spacing:.01em;
+}
+.btn-main:hover:not(:disabled){background:var(--gold2)}
+.btn-main:disabled{opacity:.3;cursor:not-allowed}
+.btn-ghost{padding:12px 16px;font-size:13px;font-family:'DM Sans',sans-serif;background:transparent;color:var(--ink2);border:1px solid var(--brd);border-radius:var(--r2);cursor:pointer;display:flex;align-items:center;gap:6px;transition:background .12s,border-color .12s}
+.btn-ghost:hover{background:var(--bg2);border-color:var(--brd2)}
+
+.notice{display:flex;align-items:flex-start;gap:10px;padding:11px 14px;border-radius:var(--r2);font-size:13px;margin-top:10px;border:1px solid var(--brd)}
+.notice.lock{background:var(--bg2);color:var(--ink3);font-size:12px}
+.notice.ok{background:var(--green-bg);border-color:rgba(58,138,92,0.3);color:#5eba84}
+.notice.err{background:var(--red-bg);border-color:rgba(154,58,58,0.3);color:#d47070}
+.notice-icon{flex-shrink:0;margin-top:1px}
+
+.compat-warn{font-size:12px;color:var(--gold);background:var(--gold-bg);border:1px solid var(--gold-brd);border-radius:var(--r2);padding:10px 14px;margin-top:10px;line-height:1.6;display:none}
+</style>
+
+<div class="wrap">
+  <h2 class="sr-only">Compresseur vidéo — traitement local</h2>
+
+  <div class="header">
+    <div class="header-icon"><i class="ti ti-movie" aria-hidden="true"></i></div>
+    <h1>Compresseur vidéo</h1>
+    <span>local · sans upload</span>
+  </div>
+
+  <label class="drop-label" id="dropZone" for="fileInput">
+    <input type="file" id="fileInput" accept="video/*">
+    <div class="drop-icon-ring"><i class="ti ti-upload" aria-hidden="true"></i></div>
+    <strong>Cliquer pour choisir une vidéo</strong>
+    <p>MP4, MOV, WebM, MKV…<br>Traitement 100 % local dans votre navigateur</p>
+  </label>
+
+  <div id="fileBar" class="filebar" style="display:none">
+    <div class="filebar-icon"><i class="ti ti-file-type-mp4" aria-hidden="true"></i></div>
+    <span class="filebar-name" id="fnText"></span>
+    <span class="filebar-size" id="fnSize"></span>
+  </div>
+
+  <div class="metrics" id="metricsRow" style="display:none">
+    <div class="metric"><div class="lbl">Source</div><div class="val" id="mSrc">—</div><div class="sub">original</div></div>
+    <div class="metric" id="mDstCard"><div class="lbl">Estimé</div><div class="val" id="mDst">—</div><div class="sub" id="mDstSub">après compression</div></div>
+    <div class="metric" id="mGainCard"><div class="lbl">Réduction</div><div class="val" id="mGain">—</div><div class="sub" id="mGainSub">—</div></div>
+  </div>
+
+  <div id="settingsBlock" style="display:none">
+
+    <div class="divider"><span>Codec</span></div>
+    <div class="codec-pills" id="codecPills">
+      <div class="codec-pill" data-v="libx264">H.264</div>
+      <div class="codec-pill active" data-v="libx265">H.265</div>
+      <div class="codec-pill" data-v="libvpx-vp9">VP9</div>
+    </div>
+    <div class="codec-hint" id="codecDesc">H.265 / HEVC — 2× plus léger qu'H.264 à qualité égale. Compatible lecteurs modernes.</div>
+
+    <div class="divider"><span>Qualité & résolution</span></div>
+
+    <div class="field">
+      <div class="field-head"><label>Qualité (CRF)</label><span class="tag" id="crfTag">26</span></div>
+      <div class="field-row">
+        <div style="flex:1">
+          <input type="range" id="crf" min="18" max="32" value="26" step="1" style="width:100%">
+          <div class="crf-labels"><span>18 max</span><span>24 web</span><span>32 léger</span></div>
+        </div>
+      </div>
+      <div class="field-desc" id="crfDesc">Optimal web — très bon rendu visuel</div>
+    </div>
+
+    <div class="field">
+      <div class="field-head"><label>Résolution</label></div>
+      <div class="field-row">
+        <select id="resolution">
+          <option value="original">Originale</option>
+          <option value="1080">1080p — 1920×1080</option>
+          <option value="720" selected>720p — 1280×720</option>
+          <option value="480">480p — 854×480</option>
+          <option value="360">360p — 640×360</option>
+        </select>
+      </div>
+      <div class="field-desc">Levier le plus puissant sur le poids du fichier</div>
+    </div>
+
+    <div class="divider"><span>Audio & vitesse</span></div>
+
+    <div class="field">
+      <div class="field-head"><label>Audio AAC</label><span class="tag" id="audioTag">128 kbps</span></div>
+      <div class="field-row"><input type="range" id="audioBitrate" min="64" max="320" value="128" step="32"></div>
+      <div class="field-desc">128 kbps = streaming · 64 = voix · 256+ = hi-fi</div>
+    </div>
+
+    <div class="field">
+      <div class="field-head"><label>Vitesse</label></div>
+      <div class="field-row">
+        <select id="preset">
+          <option value="ultrafast">Ultrafast — très rapide</option>
+          <option value="fast" selected>Fast — bon compromis</option>
+          <option value="medium">Medium — meilleure compression</option>
+          <option value="slow">Slow — optimal, plus lent</option>
+        </select>
+      </div>
+      <div class="field-desc">Plus lent = fichier plus petit à qualité identique</div>
+    </div>
+
+  </div>
+
+  <div id="progressBlock" style="display:none">
+    <div class="progress-block">
+      <div class="progress-track"><div class="progress-fill" id="pFill"></div></div>
+      <div class="progress-info"><span id="pLabel">Initialisation…</span><span id="pPct">0%</span></div>
+    </div>
+    <div class="log" id="logBox"></div>
+  </div>
+
+  <div class="actions" id="actionsRow" style="display:none">
+    <button class="btn-main" id="btnMain"><i class="ti ti-bolt" aria-hidden="true"></i> Compresser</button>
+    <button class="btn-ghost" id="btnReset"><i class="ti ti-refresh" aria-hidden="true"></i> Nouveau fichier</button>
+  </div>
+
+  <div class="notice lock" style="margin-top:14px">
+    <i class="ti ti-lock notice-icon" style="font-size:14px" aria-hidden="true"></i>
+    <span>Traitement entièrement local — aucune vidéo ne quitte votre appareil.</span>
+  </div>
+  <div class="notice ok" id="resultNotice" style="display:none">
+    <i class="ti ti-check notice-icon" style="font-size:14px" aria-hidden="true"></i>
+    <span id="resultTxt"></span>
+  </div>
+  <div class="notice err" id="errNotice" style="display:none">
+    <i class="ti ti-alert-circle notice-icon" style="font-size:14px" aria-hidden="true"></i>
+    <span id="errTxt"></span>
+  </div>
+  <div class="compat-warn" id="compatWarn">
+    Votre navigateur ne supporte pas WebCodecs (requis). Utilisez Chrome ou Edge 94+.
+  </div>
+</div>
+
+<script type="module">
+const $ = id => document.getElementById(id);
+let file = null, outputBlob = null;
+
+const codecDescs = {
+  libx264:'H.264 — compatible universel. Idéal pour partager sur tout support.',
+  libx265:'H.265 / HEVC — 2× plus léger qu\'H.264 à qualité égale.',
+  'libvpx-vp9':'VP9 — open source, très efficace. Idéal pour le web (Chrome, Firefox).'
+};
+
+document.querySelectorAll('.codec-pill').forEach(p => {
+  p.addEventListener('click', () => {
+    document.querySelectorAll('.codec-pill').forEach(x => x.classList.remove('active'));
+    p.classList.add('active');
+    $('codecDesc').textContent = codecDescs[p.dataset.v] || '';
+    updateEstimate();
+  });
+});
+
+const dropZone = $('dropZone');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('over'); if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+$('fileInput').addEventListener('change', e => { if(e.target.files[0]) handleFile(e.target.files[0]); });
+
+function fmt(b) {
+  if(b>1e9) return (b/1e9).toFixed(2)+' GB';
+  if(b>1e6) return (b/1e6).toFixed(1)+' MB';
+  return Math.round(b/1e3)+' KB';
+}
+
+function handleFile(f) {
+  file = f; outputBlob = null;
+  $('fnText').textContent = f.name.length>42 ? f.name.slice(0,42)+'…' : f.name;
+  $('fnSize').textContent = fmt(f.size);
+  $('mSrc').textContent = fmt(f.size);
+  $('fileBar').style.display = 'flex';
+  $('metricsRow').style.display = 'grid';
+  $('settingsBlock').style.display = 'block';
+  $('actionsRow').style.display = 'flex';
+  $('resultNotice').style.display = 'none';
+  $('errNotice').style.display = 'none';
+  $('progressBlock').style.display = 'none';
+  const btn = $('btnMain');
+  btn.innerHTML = '<i class="ti ti-bolt" aria-hidden="true"></i> Compresser';
+  btn.disabled = false; btn.onclick = compress;
+  updateEstimate();
+}
+
+function getSettings() {
+  const pill = document.querySelector('.codec-pill.active');
+  return {
+    codec: pill ? pill.dataset.v : 'libx264',
+    crf: parseInt($('crf').value),
+    resolution: $('resolution').value,
+    audioBitrate: parseInt($('audioBitrate').value),
+    preset: $('preset').value,
+  };
+}
+
+function updateEstimate() {
+  if(!file) return;
+  const s = getSettings();
+  let f = 1;
+  if(s.codec==='libx265'||s.codec==='libvpx-vp9') f *= 0.5;
+  f *= Math.pow(1.12, 23-s.crf);
+  const rf = {original:1,'1080':0.85,'720':0.45,'480':0.20,'360':0.10};
+  f *= rf[s.resolution]||1; f = Math.min(f, 0.98);
+  const est = Math.round(file.size * f);
+  const pct = Math.round((1-f)*100);
+  $('mDst').textContent = fmt(est);
+  $('mGain').textContent = '-'+pct+'%';
+  $('mGainSub').textContent = fmt(file.size-est)+' économisés';
+  const gc = $('mGainCard');
+  gc.className = 'metric '+(pct>55?'good':pct>25?'gold':'');
+}
+
+$('crf').addEventListener('input', function() {
+  $('crfTag').textContent = this.value;
+  const v = parseInt(this.value);
+  const d = {18:'Quasi sans perte',19:'Quasi sans perte',20:'Qualité broadcast',21:'Qualité broadcast',22:'Haute qualité',23:'Référence H.264',24:'Optimal web',25:'Optimal web',26:'Optimal web — très bon rendu',27:'Compression visible sur détails fins',28:'Compression légèrement visible',29:'Artefacts possibles sur mouvements',30:'Compression forte',31:'Compression forte',32:'Qualité réduite'};
+  $('crfDesc').textContent = d[v]||'';
+  updateEstimate();
+});
+$('audioBitrate').addEventListener('input', function() { $('audioTag').textContent = this.value+' kbps'; updateEstimate(); });
+['resolution','preset'].forEach(id => $(id).addEventListener('change', updateEstimate));
+$('btnReset').addEventListener('click', () => {
+  file = null; outputBlob = null;
+  ['fileBar','metricsRow','settingsBlock','actionsRow','progressBlock','resultNotice','errNotice'].forEach(id => $(id).style.display='none');
+  $('fileInput').value = '';
+});
+
+function setProgress(pct, label) {
+  if(pct !== null) { $('pFill').style.width = pct+'%'; $('pPct').textContent = Math.round(pct)+'%'; }
+  if(label) $('pLabel').textContent = label;
+}
+
+async function compress() {
+  if(!file) return;
+  const btn = $('btnMain');
+  btn.disabled = true;
+  $('progressBlock').style.display = 'block';
+  $('resultNotice').style.display = 'none';
+  $('errNotice').style.display = 'none';
+  $('logBox').textContent = '';
+  setProgress(0, 'Initialisation…');
+
+  try {
+    if(typeof VideoDecoder === 'undefined') {
+      $('compatWarn').style.display = 'block';
+      throw new Error('WebCodecs non supporté — utilisez Chrome ou Edge 94+');
+    }
+
+    setProgress(5, 'Chargement du muxer…');
+
+    const { createFile, DataStream } = await import('https://esm.sh/mp4box@0.5.2');
+
+    setProgress(12, 'Lecture de la vidéo…');
+    const arrayBuffer = await file.arrayBuffer();
+
+    setProgress(18, 'Analyse du conteneur…');
+
+    const mp4boxIn = createFile();
+    await new Promise((resolve, reject) => {
+      mp4boxIn.onError = reject;
+      mp4boxIn.onReady = resolve;
+      const buf = arrayBuffer.slice(0);
+      buf.fileStart = 0;
+      mp4boxIn.appendBuffer(buf);
+      mp4boxIn.flush();
+    });
+
+    const info = mp4boxIn.getInfo();
+    const videoTrack = info.tracks.find(t => t.type === 'video');
+    const audioTrack = info.tracks.find(t => t.type === 'audio');
+
+    if(!videoTrack) throw new Error('Aucune piste vidéo trouvée dans ce fichier.');
+
+    const s = getSettings();
+    const origW = videoTrack.video.width;
+    const origH = videoTrack.video.height;
+    let targetH = s.resolution === 'original' ? origH : parseInt(s.resolution);
+    if(targetH > origH) targetH = origH;
+    const scale = targetH / origH;
+    const targetW = Math.round(origW * scale / 2) * 2;
+    const finalH = Math.round(origH * scale / 2) * 2;
+
+    const qualityMap = {18:1,19:0.97,20:0.94,21:0.91,22:0.88,23:0.85,24:0.80,25:0.74,26:0.68,27:0.60,28:0.52,29:0.44,30:0.36,31:0.28,32:0.20};
+    const quality = qualityMap[s.crf] ?? 0.68;
+
+    setProgress(22, 'Décodage des frames vidéo…');
+
+    const frames = [];
+    const videoCodecStr = videoTrack.codec;
+
+    const decoder = new VideoDecoder({
+      output: frame => frames.push(frame),
+      error: e => { throw e; }
+    });
+
+    decoder.configure({ codec: videoCodecStr, codedWidth: origW, codedHeight: origH });
+
+    mp4boxIn.setExtractionOptions(videoTrack.id, null, { nbSamples: Infinity });
+    const videoSamples = await new Promise(resolve => {
+      const samples = [];
+      mp4boxIn.onSamples = (id, user, s) => { if(id===videoTrack.id) samples.push(...s); };
+      mp4boxIn.start();
+      setTimeout(() => resolve(samples), 500);
+    });
+    mp4boxIn.stop();
+
+    const total = videoSamples.length;
+    for(let i = 0; i < total; i++) {
+      const sample = videoSamples[i];
+      const chunk = new EncodedVideoChunk({
+        type: sample.is_sync ? 'key' : 'delta',
+        timestamp: sample.cts * 1e6 / videoTrack.timescale,
+        duration: sample.duration * 1e6 / videoTrack.timescale,
+        data: sample.data
+      });
+      decoder.decode(chunk);
+      if(i % 30 === 0) {
+        await decoder.flush();
+        setProgress(22 + Math.round((i/total)*38), `Décodage… ${i}/${total} frames`);
+      }
+    }
+    await decoder.flush();
+    decoder.close();
+
+    setProgress(60, `Encodage de ${frames.length} frames…`);
+
+    const encodedChunks = [];
+    const fps = Math.round(videoTrack.nb_samples / (videoTrack.duration / videoTrack.timescale)) || 30;
+    const bitrate = Math.round(targetW * finalH * fps * 0.07 * quality);
+
+    const encoder = new VideoEncoder({
+      output: (chunk, meta) => encodedChunks.push({ chunk, meta }),
+      error: e => { throw e; }
+    });
+
+    encoder.configure({
+      codec: 'avc1.42E01F',
+      width: targetW, height: finalH,
+      bitrate: bitrate,
+      framerate: fps,
+      hardwareAcceleration: 'prefer-software'
+    });
+
+    for(let i = 0; i < frames.length; i++) {
+      const frame = frames[i];
+      let toEncode = frame;
+      if(targetW !== origW || finalH !== origH) {
+        const canvas = new OffscreenCanvas(targetW, finalH);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(frame, 0, 0, targetW, finalH);
+        toEncode = new VideoFrame(canvas, { timestamp: frame.timestamp, duration: frame.duration });
+      }
+      encoder.encode(toEncode, { keyFrame: i % (fps*2) === 0 });
+      if(toEncode !== frame) toEncode.close();
+      frame.close();
+      if(i % 15 === 0) {
+        await encoder.flush();
+        setProgress(60 + Math.round((i/frames.length)*30), `Encodage… ${i}/${frames.length} frames`);
+      }
+    }
+    await encoder.flush();
+    encoder.close();
+
+    setProgress(92, 'Assemblage du fichier MP4…');
+
+    const mp4boxOut = createFile();
+    const videoTrackId = mp4boxOut.addTrack({
+      type: 'avc1',
+      width: targetW, height: finalH,
+      timescale: 90000,
+      duration: Math.round(videoTrack.duration / videoTrack.timescale * 90000),
+    });
+
+    let sampleTime = 0;
+    const frameDuration = Math.round(90000 / fps);
+    for(const { chunk } of encodedChunks) {
+      const buf = new ArrayBuffer(chunk.byteLength);
+      chunk.copyTo(buf);
+      mp4boxOut.addSample(videoTrackId, buf, {
+        duration: frameDuration,
+        cts: sampleTime,
+        dts: sampleTime,
+        is_sync: chunk.type === 'key',
+      });
+      sampleTime += frameDuration;
+    }
+
+    const outBufs = [];
+    mp4boxOut.onMoovStart = () => {};
+    mp4boxOut.onReady = () => {};
+    const stream = new DataStream();
+    stream.endianness = DataStream.BIG_ENDIAN;
+    mp4boxOut.save(stream);
+    outputBlob = new Blob([stream.buffer], { type: 'video/mp4' });
+
+    setProgress(100, 'Terminé');
+
+    const pct = Math.round((1 - outputBlob.size / file.size) * 100);
+    $('mDst').textContent = fmt(outputBlob.size);
+    $('mDstSub').textContent = 'résultat réel';
+    $('mGain').textContent = '-'+pct+'%';
+    $('mGainSub').textContent = fmt(file.size - outputBlob.size)+' économisés';
+    $('mGainCard').className = 'metric '+(pct>55?'good':pct>25?'gold':'');
+    $('resultTxt').textContent = 'Vidéo prête · '+fmt(outputBlob.size)+' · −'+pct+'%';
+    $('resultNotice').style.display = 'flex';
+
+    btn.innerHTML = '<i class="ti ti-download" aria-hidden="true"></i> Télécharger la vidéo';
+    btn.disabled = false;
+    btn.onclick = () => {
+      const url = URL.createObjectURL(outputBlob);
+      const a = document.createElement('a');
+      a.href = url; a.download = file.name.replace(/\.[^.]+$/, '')+'_compressed.mp4';
+      a.click(); URL.revokeObjectURL(url);
+    };
+
+  } catch(err) {
+    setProgress(0, 'Erreur');
+    $('errTxt').textContent = err.message || String(err);
+    $('errNotice').style.display = 'flex';
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-bolt" aria-hidden="true"></i> Réessayer';
+    btn.onclick = compress;
+  }
+}
+</script>

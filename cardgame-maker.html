@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CardMaker — Créateur de jeux de cartes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f0e8;
+    --bg2: #ede8de;
+    --surface: #fff;
+    --border: #d8d0c0;
+    --accent: #2d5a8e;
+    --accent2: #c4773a;
+    --text: #1a1714;
+    --text2: #6b6358;
+    --card-grad-a: #2d5a8e;
+    --card-grad-b: #1a3a5c;
+    --success: #3a7d44;
+    --danger: #b94040;
+    --radius: 12px;
+    --shadow: 0 4px 24px rgba(0,0,0,0.10);
+    --shadow-lg: 0 8px 40px rgba(0,0,0,0.16);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ─── HEADER ─── */
+  header {
+    background: var(--text);
+    padding: 0 32px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    height: 64px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: -0.02em;
+    flex: 1;
+  }
+  header h1 span { color: var(--accent2); }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+  }
+  .tab-btn {
+    background: rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.6);
+    border: none;
+    border-radius: 8px;
+    padding: 8px 20px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .tab-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
+  .tab-btn.active { background: var(--accent2); color: #fff; }
+
+  /* ─── PANELS ─── */
+  .panel { display: none; padding: 40px 32px; max-width: 900px; margin: 0 auto; }
+  .panel.active { display: block; }
+
+  /* ─── ADMIN ─── */
+  .section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 20px;
+    color: var(--text);
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--border);
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text2);
+  }
+  .form-group input, .form-group select {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    color: var(--text);
+    transition: border-color 0.2s;
+    outline: none;
+  }
+  .form-group input:focus, .form-group select:focus { border-color: var(--accent); }
+  .form-group.full { grid-column: 1/-1; }
+
+  .toggle-row {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+  }
+  .toggle-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+  }
+  .toggle-item:hover { border-color: var(--accent); }
+  .toggle-item.on { border-color: var(--accent); background: #eef3fa; }
+  .toggle-item input[type="checkbox"] { display: none; }
+  .toggle-dot {
+    width: 36px; height: 20px;
+    background: var(--border);
+    border-radius: 10px;
+    position: relative;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .toggle-dot::after {
+    content: '';
+    position: absolute;
+    left: 3px; top: 3px;
+    width: 14px; height: 14px;
+    background: #fff;
+    border-radius: 50%;
+    transition: left 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+  .toggle-item.on .toggle-dot { background: var(--accent); }
+  .toggle-item.on .toggle-dot::after { left: 19px; }
+  .toggle-label { font-size: 0.875rem; font-weight: 500; }
+
+  /* Backgrounds upload */
+  .bg-upload-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    background: var(--surface);
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .upload-zone:hover { border-color: var(--accent); background: #eef3fa; }
+  .upload-zone input[type="file"] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .upload-zone .uz-icon { font-size: 2rem; margin-bottom: 6px; }
+  .upload-zone .uz-label { font-size: 0.8rem; color: var(--text2); font-weight: 500; }
+  .upload-zone .uz-name { font-size: 0.8rem; color: var(--accent); font-weight: 600; margin-top: 4px; word-break: break-all; }
+  .upload-zone .uz-preview {
+    width: 100%; height: 80px; object-fit: cover;
+    border-radius: 8px; margin-top: 8px;
+    display: none;
+  }
+
+  /* Card labels grid */
+  .labels-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .labels-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .label-card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .label-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text2);
+  }
+  .label-card-num {
+    background: var(--text);
+    color: #fff;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-family: 'Playfair Display', serif;
+    font-size: 0.8rem;
+  }
+  .label-card input[type="text"] {
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.875rem;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+  }
+  .label-card input[type="text"]:focus { border-color: var(--accent); }
+  .label-card .img-upload-mini {
+    border: 1.5px dashed var(--border);
+    border-radius: 8px;
+    padding: 8px;
+    font-size: 0.75rem;
+    color: var(--text2);
+    text-align: center;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s;
+    display: none;
+  }
+  .label-card .img-upload-mini:hover { border-color: var(--accent2); color: var(--accent2); }
+  .label-card .img-upload-mini input[type="file"] {
+    position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer;
+  }
+  .label-card .img-upload-mini img {
+    max-height: 60px; max-width: 100%; border-radius: 6px; display: none;
+  }
+
+  .btn {
+    border: none;
+    border-radius: 10px;
+    padding: 11px 24px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.18s;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #1e4070; }
+  .btn-accent { background: var(--accent2); color: #fff; }
+  .btn-accent:hover { background: #a85f28; }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text2);
+    border: 1.5px solid var(--border);
+  }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-sm { padding: 7px 14px; font-size: 0.8rem; }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-danger:hover { background: #8f2e2e; }
+
+  .action-bar {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding-top: 12px;
+    border-top: 1.5px solid var(--border);
+    margin-top: 8px;
+  }
+
+  /* ─── GAME PANEL ─── */
+  .game-selector {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+  }
+  .game-selector select {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.95rem;
+    color: var(--text);
+    outline: none;
+    flex: 1;
+    max-width: 320px;
+  }
+
+  .game-info-bar {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .game-title-display {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.6rem;
+    font-weight: 900;
+    flex: 1;
+  }
+  .badge {
+    background: var(--accent2);
+    color: #fff;
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .score-badge {
+    background: var(--text);
+    color: #fff;
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+
+  /* ─── CARDS GRID ─── */
+  .cards-grid {
+    display: grid;
+    gap: 16px;
+    justify-content: center;
+  }
+
+  /* CARD */
+  .card-wrapper {
+    perspective: 800px;
+  }
+  .card {
+    width: 160px;
+    height: 110px;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.55s cubic-bezier(0.4,0,0.2,1);
+    cursor: pointer;
+    border-radius: 12px;
+  }
+  .card.flipped { transform: rotateY(180deg); }
+  .card.matched { cursor: default; }
+  .card.matched .card-face { box-shadow: 0 0 0 3px var(--success), var(--shadow); }
+  .card.wrong-shake { animation: shake 0.4s ease; }
+
+  @keyframes shake {
+    0%,100% { transform: rotateY(180deg) translateX(0); }
+    25% { transform: rotateY(180deg) translateX(-6px); }
+    75% { transform: rotateY(180deg) translateX(6px); }
+  }
+
+  .card-face {
+    position: absolute;
+    inset: 0;
+    border-radius: 12px;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+  }
+
+  /* RECTO (numéro) */
+  .card-front {
+    background: linear-gradient(135deg, var(--card-grad-a) 0%, var(--card-grad-b) 100%);
+  }
+  .card-front.has-bg-img { background: none; }
+  .card-front .bg-layer {
+    position: absolute; inset: 0;
+    background-size: cover;
+    background-position: center;
+    border-radius: 12px;
+  }
+  .card-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: rgba(255,255,255,0.92);
+    text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    position: relative;
+    z-index: 1;
+    line-height: 1;
+  }
+  .card-front .corner-dec {
+    position: absolute;
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: rgba(255,255,255,0.4);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .card-front .corner-dec.tl { top: 8px; left: 10px; }
+  .card-front .corner-dec.br { bottom: 8px; right: 10px; transform: rotate(180deg); }
+
+  /* VERSO (contenu) */
+  .card-back {
+    transform: rotateY(180deg);
+    background: linear-gradient(135deg, #f8f4ee 0%, #ede8de 100%);
+    padding: 10px;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .card-back.has-bg-img { background: none; }
+  .card-back .bg-layer {
+    position: absolute; inset: 0;
+    background-size: cover;
+    background-position: center;
+    border-radius: 12px;
+  }
+  .card-back .bg-layer::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: rgba(255,255,255,0.45);
+    border-radius: 12px;
+  }
+  .card-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+  }
+  .card-content-text {
+    font-family: 'Playfair Display', serif;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.3;
+    word-break: break-word;
+    hyphens: auto;
+    padding: 4px;
+  }
+  .card-content-img {
+    max-width: 90%;
+    max-height: 80px;
+    object-fit: contain;
+    border-radius: 6px;
+  }
+
+  /* WIN OVERLAY */
+  .win-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(26,23,20,0.75);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+  .win-overlay.visible { display: flex; }
+  .win-box {
+    background: var(--surface);
+    border-radius: 20px;
+    padding: 48px 56px;
+    text-align: center;
+    box-shadow: var(--shadow-lg);
+    animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  @keyframes popIn {
+    from { transform: scale(0.7); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  .win-box .win-emoji { font-size: 3.5rem; margin-bottom: 16px; }
+  .win-box h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2rem;
+    font-weight: 900;
+    margin-bottom: 8px;
+  }
+  .win-box p { color: var(--text2); margin-bottom: 24px; }
+
+  /* TOAST */
+  #toast {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--text);
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 40px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: transform 0.3s;
+    z-index: 300;
+    pointer-events: none;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* saved games list */
+  .games-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 12px;
+    margin-bottom: 28px;
+  }
+  .game-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 24px;
+    padding: 6px 16px 6px 12px;
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+  .game-chip .del-chip {
+    background: none; border: none; color: var(--text2);
+    cursor: pointer; font-size: 1rem; line-height: 1;
+    transition: color 0.15s;
+    padding: 0;
+  }
+  .game-chip .del-chip:hover { color: var(--danger); }
+
+  .sep { height: 32px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Card<span>Maker</span></h1>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('admin')">⚙️ Administration</button>
+    <button class="tab-btn" onclick="switchTab('game')">🎮 Jouer</button>
+  </div>
+</header>
+
+<!-- ══════════════ ADMIN PANEL ══════════════ -->
+<div class="panel active" id="panel-admin">
+
+  <div class="section-title">Paramètres du jeu</div>
+
+  <div class="form-grid">
+    <div class="form-group full">
+      <label>Nom du jeu</label>
+      <input type="text" id="gameName" placeholder="Ex : Capitales du monde…" maxlength="60">
+    </div>
+    <div class="form-group">
+      <label>Lignes</label>
+      <input type="number" id="rows" value="3" min="1" max="10" oninput="refreshLabels()">
+    </div>
+    <div class="form-group">
+      <label>Colonnes</label>
+      <input type="number" id="cols" value="4" min="1" max="10" oninput="refreshLabels()">
+    </div>
+    <div class="form-group">
+      <label>Total de cartes</label>
+      <input type="text" id="totalDisplay" value="12" readonly style="background:#f0ede8;color:var(--text2);">
+    </div>
+  </div>
+
+  <div class="toggle-row">
+    <label class="toggle-item" id="toggle-memory" onclick="toggleCheck('isMemory')">
+      <input type="checkbox" id="isMemory">
+      <div class="toggle-dot"></div>
+      <span class="toggle-label">Mode Memory (paires)</span>
+    </label>
+    <label class="toggle-item" id="toggle-images" onclick="toggleCheck('useImages')">
+      <input type="checkbox" id="useImages">
+      <div class="toggle-dot"></div>
+      <span class="toggle-label">Utiliser des images sur les cartes</span>
+    </label>
+  </div>
+
+  <div class="bg-upload-row">
+    <div class="upload-zone" id="zone-recto">
+      <input type="file" accept="image/*" onchange="loadBg('recto',this)">
+      <div class="uz-icon">🃏</div>
+      <div class="uz-label">Arrière-plan <strong>Recto</strong> (numéro)</div>
+      <div class="uz-name" id="recto-name"></div>
+      <img class="uz-preview" id="recto-preview" alt="">
+    </div>
+    <div class="upload-zone" id="zone-verso">
+      <input type="file" accept="image/*" onchange="loadBg('verso',this)">
+      <div class="uz-icon">✨</div>
+      <div class="uz-label">Arrière-plan <strong>Verso</strong> (contenu)</div>
+      <div class="uz-name" id="verso-name"></div>
+      <img class="uz-preview" id="verso-preview" alt="">
+    </div>
+  </div>
+
+  <div class="labels-header">
+    <div class="section-title" style="margin-bottom:0;border:none;padding:0">Contenu des cartes</div>
+    <button class="btn btn-ghost btn-sm" onclick="refreshLabels()">↺ Rafraîchir</button>
+  </div>
+  <div class="labels-grid" id="labelsGrid"></div>
+
+  <div class="action-bar">
+    <button class="btn btn-accent" onclick="saveGame()">💾 Sauvegarder le jeu</button>
+    <button class="btn btn-ghost" onclick="exportGames()">📤 Exporter JSON</button>
+    <label class="btn btn-ghost" style="cursor:pointer">
+      📥 Importer JSON
+      <input type="file" accept=".json" onchange="importGames(this)" style="display:none">
+    </label>
+    <button class="btn btn-ghost btn-sm" onclick="clearForm()" style="margin-left:auto">Réinitialiser</button>
+  </div>
+
+  <div class="sep"></div>
+  <div class="section-title">Jeux enregistrés</div>
+  <div class="games-list" id="gamesList"></div>
+</div>
+
+<!-- ══════════════ GAME PANEL ══════════════ -->
+<div class="panel" id="panel-game">
+
+  <div class="game-selector">
+    <select id="gameSelect" onchange="loadSelectedGame()">
+      <option value="">— Choisir un jeu —</option>
+    </select>
+    <button class="btn btn-primary" onclick="restartGame()">▶ Rejouer</button>
+  </div>
+
+  <div id="gameArea" style="display:none">
+    <div class="game-info-bar">
+      <div class="game-title-display" id="gameTitleDisplay"></div>
+      <span class="badge" id="modeBadge"></span>
+      <span class="score-badge" id="scoreBadge"></span>
+    </div>
+    <div class="cards-grid" id="cardsGrid"></div>
+  </div>
+
+  <div style="color:var(--text2);font-size:0.9rem;margin-top:12px" id="noGameMsg">
+    Aucun jeu sélectionné. Créez-en un dans l'onglet Administration.
+  </div>
+</div>
+
+<!-- WIN OVERLAY -->
+<div class="win-overlay" id="winOverlay">
+  <div class="win-box">
+    <div class="win-emoji">🎉</div>
+    <h2>Bravo !</h2>
+    <p id="winMsg">Toutes les cartes ont été retournées !</p>
+    <button class="btn btn-accent" onclick="restartGame()">Rejouer</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+/* ═══════════════════════════════════
+   STATE
+═══════════════════════════════════ */
+let bgRecto = null;  // data URL
+let bgVerso = null;
+let cardImages = {}; // { cardIndex: dataURL }
+
+/* ═══════════════════════════════════
+   TABS
+═══════════════════════════════════ */
+function switchTab(tab) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + tab).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (tab === 'game') populateGameSelect();
+}
+
+/* ═══════════════════════════════════
+   TOGGLES
+═══════════════════════════════════ */
+function toggleCheck(id) {
+  const cb = document.getElementById(id);
+  cb.checked = !cb.checked;
+  const item = document.getElementById('toggle-' + id.replace('is','').replace('use','').toLowerCase());
+  if (id === 'isMemory') document.getElementById('toggle-memory').classList.toggle('on', cb.checked);
+  if (id === 'useImages') {
+    document.getElementById('toggle-images').classList.toggle('on', cb.checked);
+    refreshLabels();
+  }
+}
+
+/* ═══════════════════════════════════
+   BG UPLOAD
+═══════════════════════════════════ */
+function loadBg(side, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    if (side === 'recto') {
+      bgRecto = e.target.result;
+      document.getElementById('recto-name').textContent = file.name;
+      const prev = document.getElementById('recto-preview');
+      prev.src = bgRecto; prev.style.display = 'block';
+    } else {
+      bgVerso = e.target.result;
+      document.getElementById('verso-name').textContent = file.name;
+      const prev = document.getElementById('verso-preview');
+      prev.src = bgVerso; prev.style.display = 'block';
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+/* ═══════════════════════════════════
+   LABELS GRID
+═══════════════════════════════════ */
+function refreshLabels() {
+  const rows = parseInt(document.getElementById('rows').value) || 1;
+  const cols = parseInt(document.getElementById('cols').value) || 1;
+  const total = rows * cols;
+  document.getElementById('totalDisplay').value = total;
+  const useImg = document.getElementById('useImages').checked;
+  const grid = document.getElementById('labelsGrid');
+  // preserve existing values
+  const prev = {};
+  grid.querySelectorAll('.label-card').forEach(card => {
+    const i = card.dataset.i;
+    prev[i] = { text: card.querySelector('input[type="text"]').value };
+  });
+  grid.innerHTML = '';
+  for (let i = 1; i <= total; i++) {
+    const num = String(i).padStart(2, '0');
+    const prevText = prev[i] ? prev[i].text : '';
+    const imgZone = useImg ? `
+      <div class="img-upload-mini" onclick="event.stopPropagation()">
+        <input type="file" accept="image/*" onchange="loadCardImg(${i}, this)">
+        <img id="card-img-${i}" alt="">
+        <span id="card-img-lbl-${i}">📷 Image de la carte ${num}</span>
+      </div>` : '';
+    grid.insertAdjacentHTML('beforeend', `
+      <div class="label-card" data-i="${i}">
+        <div class="label-card-header">
+          <span class="label-card-num">${num}</span>
+          <span>Carte ${num}</span>
+        </div>
+        <input type="text" placeholder="Mot, texte ou question…" value="${prevText.replace(/"/g,'&quot;')}">
+        ${imgZone}
+      </div>`);
+    // restore card image preview
+    if (useImg && cardImages[i]) {
+      const imgEl = document.getElementById('card-img-' + i);
+      if (imgEl) { imgEl.src = cardImages[i]; imgEl.style.display = 'block'; }
+      const lbl = document.getElementById('card-img-lbl-' + i);
+      if (lbl) lbl.style.display = 'none';
+    }
+    if (useImg) {
+      document.querySelectorAll('.img-upload-mini').forEach(z => z.style.display = 'block');
+    }
+  }
+}
+
+function loadCardImg(index, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    cardImages[index] = e.target.result;
+    const imgEl = document.getElementById('card-img-' + index);
+    imgEl.src = e.target.result;
+    imgEl.style.display = 'block';
+    const lbl = document.getElementById('card-img-lbl-' + index);
+    if (lbl) lbl.style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+/* ═══════════════════════════════════
+   SAVE / LOAD / DELETE GAMES
+═══════════════════════════════════ */
+function getGames() {
+  return JSON.parse(localStorage.getItem('cardmaker_games') || '[]');
+}
+function setGames(games) {
+  localStorage.setItem('cardmaker_games', JSON.stringify(games));
+}
+
+function saveGame() {
+  const name = document.getElementById('gameName').value.trim();
+  if (!name) { toast('⚠️ Donnez un nom au jeu !'); return; }
+  const rows = parseInt(document.getElementById('rows').value);
+  const cols = parseInt(document.getElementById('cols').value);
+  const isMemory = document.getElementById('isMemory').checked;
+  const useImages = document.getElementById('useImages').checked;
+  const total = rows * cols;
+  const labels = [];
+  document.querySelectorAll('.label-card').forEach(card => {
+    const i = parseInt(card.dataset.i);
+    labels.push({
+      text: card.querySelector('input[type="text"]').value.trim(),
+      img: cardImages[i] || null
+    });
+  });
+  const game = { name, rows, cols, isMemory, useImages, labels, bgRecto, bgVerso, id: Date.now() };
+  const games = getGames();
+  const existIdx = games.findIndex(g => g.name === name);
+  if (existIdx >= 0) games[existIdx] = game;
+  else games.push(game);
+  setGames(games);
+  renderGamesList();
+  toast('✅ Jeu « ' + name + ' » sauvegardé !');
+}
+
+function deleteGame(id) {
+  const games = getGames().filter(g => g.id !== id);
+  setGames(games);
+  renderGamesList();
+  populateGameSelect();
+  toast('🗑️ Jeu supprimé');
+}
+
+function renderGamesList() {
+  const games = getGames();
+  const el = document.getElementById('gamesList');
+  if (!games.length) { el.innerHTML = '<span style="color:var(--text2);font-size:0.85rem">Aucun jeu sauvegardé.</span>'; return; }
+  el.innerHTML = games.map(g => `
+    <div class="game-chip">
+      <span>🃏 ${g.name}</span>
+      <span style="color:var(--text2);font-size:0.75rem">${g.rows}×${g.cols}${g.isMemory?' · Memory':''}</span>
+      <button class="del-chip" onclick="deleteGame(${g.id})" title="Supprimer">×</button>
+    </div>`).join('');
+}
+
+function populateGameSelect() {
+  const games = getGames();
+  const sel = document.getElementById('gameSelect');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— Choisir un jeu —</option>' +
+    games.map(g => `<option value="${g.id}">${g.name} (${g.rows}×${g.cols}${g.isMemory?' · Memory':''})</option>`).join('');
+  if (cur) sel.value = cur;
+}
+
+function clearForm() {
+  document.getElementById('gameName').value = '';
+  document.getElementById('rows').value = 3;
+  document.getElementById('cols').value = 4;
+  document.getElementById('isMemory').checked = false;
+  document.getElementById('toggle-memory').classList.remove('on');
+  document.getElementById('useImages').checked = false;
+  document.getElementById('toggle-images').classList.remove('on');
+  bgRecto = null; bgVerso = null; cardImages = {};
+  ['recto','verso'].forEach(s => {
+    document.getElementById(s+'-name').textContent = '';
+    const p = document.getElementById(s+'-preview');
+    p.src=''; p.style.display='none';
+  });
+  refreshLabels();
+}
+
+function exportGames() {
+  const games = getGames();
+  const blob = new Blob([JSON.stringify(games, null, 2)], {type: 'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'cardmaker-games.json';
+  a.click();
+}
+
+function importGames(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const games = JSON.parse(e.target.result);
+      setGames(games);
+      renderGamesList();
+      populateGameSelect();
+      toast('✅ ' + games.length + ' jeux importés !');
+    } catch { toast('❌ Fichier JSON invalide'); }
+  };
+  reader.readAsText(file);
+}
+
+/* ═══════════════════════════════════
+   GAME ENGINE
+═══════════════════════════════════ */
+let currentGame = null;
+let gameCards = [];     // rendered card data
+let flippedCards = [];  // indices currently flipped (memory mode)
+let matchedPairs = 0;
+let totalPairs = 0;
+let moves = 0;
+let locked = false;
+let flipAllMode = false; // non-memory
+
+function loadSelectedGame() {
+  const id = parseInt(document.getElementById('gameSelect').value);
+  const games = getGames();
+  currentGame = games.find(g => g.id === id) || null;
+  if (currentGame) buildGame();
+}
+
+function restartGame() {
+  if (currentGame) buildGame();
+}
+
+function buildGame() {
+  const game = currentGame;
+  document.getElementById('gameArea').style.display = 'block';
+  document.getElementById('noGameMsg').style.display = 'none';
+  document.getElementById('gameTitleDisplay').textContent = game.name;
+  document.getElementById('modeBadge').textContent = game.isMemory ? 'Memory' : 'Retournement';
+  document.getElementById('winOverlay').classList.remove('visible');
+  flippedCards = []; matchedPairs = 0; moves = 0; locked = false;
+
+  // Build card data
+  const base = game.labels.map((l, i) => ({ ...l, origIndex: i + 1 }));
+
+  if (game.isMemory) {
+    // Double + shuffle
+    const doubled = [...base.map(c => ({...c, pairId: c.origIndex})),
+                     ...base.map(c => ({...c, pairId: c.origIndex}))];
+    gameCards = shuffle(doubled);
+    totalPairs = base.length;
+    flipAllMode = false;
+  } else {
+    gameCards = shuffle(base.map(c => ({...c, pairId: null})));
+    totalPairs = 0;
+    flipAllMode = true;
+  }
+
+  updateScore();
+  renderCards(game);
+}
+
+function renderCards(game) {
+  const grid = document.getElementById('cardsGrid');
+  const cols = game.isMemory
+    ? Math.ceil(Math.sqrt(gameCards.length * 1.6))
+    : game.cols;
+  grid.style.gridTemplateColumns = `repeat(${cols}, 160px)`;
+  grid.innerHTML = '';
+
+  gameCards.forEach((card, idx) => {
+    const num = String(card.origIndex).padStart(2, '0');
+
+    // Recto bg
+    let rectoStyle = '';
+    if (game.bgRecto) rectoStyle = `background-image:url(${game.bgRecto})`;
+
+    // Verso bg
+    let versoStyle = '';
+    if (game.bgVerso) versoStyle = `background-image:url(${game.bgVerso})`;
+
+    // Content
+    let content = '';
+    if (card.img) {
+      content = `<img class="card-content-img" src="${card.img}" alt="">`;
+    } else {
+      content = `<div class="card-content-text">${card.text || num}</div>`;
+    }
+
+    grid.insertAdjacentHTML('beforeend', `
+      <div class="card-wrapper">
+        <div class="card" id="card-${idx}" data-idx="${idx}" onclick="onCardClick(${idx})">
+          <div class="card-face card-front ${game.bgRecto ? 'has-bg-img' : ''}">
+            ${game.bgRecto ? `<div class="bg-layer" style="${rectoStyle};background-size:cover;background-position:center;border-radius:12px;position:absolute;inset:0"></div>` : ''}
+            <span class="corner-dec tl">${num}</span>
+            <span class="card-num">${num}</span>
+            <span class="corner-dec br">${num}</span>
+          </div>
+          <div class="card-face card-back ${game.bgVerso ? 'has-bg-img' : ''}">
+            ${game.bgVerso ? `<div class="bg-layer" style="${versoStyle};background-size:cover;background-position:center;border-radius:12px;position:absolute;inset:0"></div>` : ''}
+            <div class="card-content">${content}</div>
+          </div>
+        </div>
+      </div>`);
+  });
+}
+
+function onCardClick(idx) {
+  if (locked) return;
+  const cardEl = document.getElementById('card-' + idx);
+  if (cardEl.classList.contains('flipped') || cardEl.classList.contains('matched')) return;
+
+  cardEl.classList.add('flipped');
+
+  if (flipAllMode) {
+    // Simple flip-all mode
+    const total = gameCards.length;
+    const flippedCount = document.querySelectorAll('.card.flipped').length;
+    if (flippedCount === total) setTimeout(() => showWin(false), 400);
+    return;
+  }
+
+  // Memory mode
+  flippedCards.push(idx);
+  moves++;
+  updateScore();
+
+  if (flippedCards.length < 2) return;
+
+  locked = true;
+  const [a, b] = flippedCards;
+  const ca = gameCards[a];
+  const cb = gameCards[b];
+
+  if (ca.pairId === cb.pairId) {
+    // Match!
+    setTimeout(() => {
+      document.getElementById('card-' + a).classList.add('matched');
+      document.getElementById('card-' + b).classList.add('matched');
+      flippedCards = [];
+      locked = false;
+      matchedPairs++;
+      if (matchedPairs === totalPairs) setTimeout(() => showWin(true), 400);
+    }, 600);
+  } else {
+    // No match
+    setTimeout(() => {
+      [a, b].forEach(i => {
+        const el = document.getElementById('card-' + i);
+        el.classList.add('wrong-shake');
+        setTimeout(() => {
+          el.classList.remove('flipped', 'wrong-shake');
+        }, 400);
+      });
+      flippedCards = [];
+      locked = false;
+    }, 900);
+  }
+}
+
+function updateScore() {
+  const badge = document.getElementById('scoreBadge');
+  if (flipAllMode) {
+    const flipped = document.querySelectorAll('.card.flipped').length;
+    badge.textContent = `${flipped} / ${gameCards.length}`;
+  } else {
+    badge.textContent = `${matchedPairs} paire${matchedPairs>1?'s':''} · ${moves} coup${moves>1?'s':''}`;
+  }
+}
+
+function showWin(isMemory) {
+  document.getElementById('winMsg').textContent = isMemory
+    ? `Toutes les paires trouvées en ${moves} coups !`
+    : `Toutes les cartes retournées !`;
+  document.getElementById('winOverlay').classList.add('visible');
+}
+
+/* ═══════════════════════════════════
+   UTILS
+═══════════════════════════════════ */
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+/* ═══════════════════════════════════
+   INIT
+═══════════════════════════════════ */
+refreshLabels();
+renderGamesList();
+populateGameSelect();
+</script>
+</body>
+</html>

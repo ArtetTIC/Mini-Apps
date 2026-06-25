@@ -1,0 +1,1274 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SVG Animator Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+</head>
+<body class="m-0 p-0 overflow-hidden bg-gray-900">
+    <div class="flex h-screen">
+        <div class="w-80 bg-gray-800 text-white p-4 overflow-y-auto space-y-3">
+            <h1 class="text-xl font-bold mb-1">SVG Animator Pro</h1>
+            <p class="text-xs text-gray-400 mb-4">Advanced Path Effects</p>
+            
+            <div class="space-y-3">
+                <button onclick="document.getElementById('svgFile').click()" class="w-full bg-blue-600 hover:bg-blue-700 py-2 rounded">📁 Charger SVG</button>
+                <input type="file" id="svgFile" accept=".svg" class="hidden">
+                
+                <div>
+                    <label class="text-xs">Effet Principal</label>
+                    <select id="effectSelect" onchange="updateControls()" class="w-full bg-gray-700 p-2 rounded text-sm mt-1">
+                        <option value="drawPath">✍️ Draw Path</option>
+                        <option value="liquidFill">💧 Liquid Fill</option>
+                        <option value="fireTrail">🔥 Fire Trail</option>
+                        <option value="morphStrokeFill">🌀 Morph Stroke→Fill</option>
+                        <option value="randomPop">🎲 Random Pop</option>
+                        <option value="explode">💥 Explode/Implode</option>
+                        <option value="neonGlow">⚡ Neon Glow</option>
+                        <option value="sparkle">✨ Sparkle Trail</option>
+                        <option value="waveReveal">🌊 Wave Reveal</option>
+                        <option value="bouncingBall">⚽ Bouncing Ball</option>
+                    </select>
+                    <p id="effectDesc" class="text-xs text-gray-400 mt-1">Tracé progressif des paths</p>
+                </div>
+                
+                <div class="border-t border-gray-700 pt-3">
+                    <p class="text-xs font-bold mb-2">Mode de Rendu</p>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button onclick="setRenderMode('stroke')" id="btnStroke" class="bg-cyan-600 text-white py-1 rounded text-xs">Stroke</button>
+                        <button onclick="setRenderMode('fill')" id="btnFill" class="bg-gray-600 text-white py-1 rounded text-xs">Fill</button>
+                        <button onclick="setRenderMode('random')" id="btnRandom" class="bg-gray-600 text-white py-1 rounded text-xs">Random</button>
+                    </div>
+                </div>
+                
+                <div class="border-t border-gray-700 pt-3 space-y-2">
+                    <div>
+                        <label class="text-xs">Durée: <span id="durVal">10</span>s</label>
+                        <input type="range" id="duration" min="3" max="60" value="10" class="w-full">
+                    </div>
+                    
+                    <div id="glowControl">
+                        <label class="text-xs">Glow: <span id="glowVal">20</span>px</label>
+                        <input type="range" id="glow" min="0" max="50" value="20" class="w-full">
+                    </div>
+                    
+                    <div id="delayControl">
+                        <label class="text-xs">Délai entre paths: <span id="delayVal">0.1</span>s</label>
+                        <input type="range" id="pathDelay" min="0" max="1" step="0.05" value="0.1" class="w-full">
+                    </div>
+                    
+                    <div class="mt-2">
+                        <label class="flex items-center gap-2 text-xs cursor-pointer">
+                            <input type="checkbox" id="reverse">
+                            <span>Inverser l'animation</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="border-t border-gray-700 pt-3">
+                    <p class="text-xs font-bold mb-2">Couleurs</p>
+                    <button onclick="document.getElementById('paletteFile').click()" class="w-full bg-gray-700 hover:bg-gray-600 py-1 rounded text-xs mb-2">🎨 Import Coolors</button>
+                    <input type="file" id="paletteFile" accept=".txt,.json" class="hidden">
+                    
+                    <div id="colorPalette" class="grid grid-cols-4 gap-2">
+                        <input type="color" value="#00ffff" class="w-full h-8 rounded">
+                        <input type="color" value="#ff00ff" class="w-full h-8 rounded">
+                        <input type="color" value="#ffff00" class="w-full h-8 rounded">
+                        <input type="color" value="#00ff00" class="w-full h-8 rounded">
+                    </div>
+                    <div class="flex gap-2 mt-2">
+                        <button onclick="addColor()" class="flex-1 bg-green-700 py-1 rounded text-xs">+</button>
+                        <button onclick="removeColor()" class="flex-1 bg-red-700 py-1 rounded text-xs">-</button>
+                    </div>
+                </div>
+                
+                <div class="border-t border-gray-700 pt-3">
+                    <p class="text-xs font-bold mb-2">Export</p>
+                    <div class="space-y-2">
+                        <div class="flex gap-2">
+                            <input type="number" id="resW" value="1920" class="w-full bg-gray-700 p-1 rounded text-xs">
+                            <input type="number" id="resH" value="1080" class="w-full bg-gray-700 p-1 rounded text-xs">
+                        </div>
+                        <select id="fps" class="w-full bg-gray-700 p-2 rounded text-xs">
+                            <option value="24">24 FPS</option>
+                            <option value="25">25 FPS</option>
+                            <option value="30">30 FPS</option>
+                            <option value="60">60 FPS</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <button onclick="startPreview()" class="w-full bg-green-600 hover:bg-green-700 py-2 rounded">👁️ Preview</button>
+                
+                <button onclick="testBouncingBall()" class="w-full bg-yellow-600 hover:bg-yellow-700 py-1 rounded text-xs">🔧 Test Bouncing Ball</button>
+                
+                <button onclick="startRender()" class="w-full bg-purple-600 hover:bg-purple-700 py-2 rounded font-bold">🎬 Générer</button>
+                
+                <div id="renderProgress" class="hidden mt-2 bg-gray-700 rounded p-2">
+                    <div class="w-full bg-gray-600 rounded-full h-3">
+                        <div id="progressBar" class="bg-purple-500 h-3 rounded-full" style="width:0%"></div>
+                    </div>
+                    <p id="progressText" class="text-xs text-center mt-1">0%</p>
+                </div>
+                
+                <div id="status" class="p-2 bg-gray-700 rounded text-xs">
+                    <p>SVG: ❌</p>
+                    <p>Paths: 0</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="flex-1 flex items-center justify-center bg-black">
+            <canvas id="canvas" width="1920" height="1080" class="max-w-full max-h-full"></canvas>
+        </div>
+    </div>
+
+    <script>
+        let paths = [];
+        let svgViewBox = { x: 0, y: 0, w: 1920, h: 1080 };
+        let colors = ['#00ffff', '#ff00ff', '#ffff00', '#00ff00'];
+        let renderMode = 'stroke';
+        let pathRenderModes = []; // Pour random
+        let isPreviewPlaying = false;
+        let previewFrame = null;
+        let pathFlashStates = []; // Pour bouncing ball
+        let balls = []; // Les balles
+        
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Load SVG
+        document.getElementById('svgFile').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                parseSVG(ev.target.result);
+            };
+            reader.readAsText(file);
+        });
+        
+        function parseSVG(content) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(content, 'image/svg+xml');
+            const svg = doc.querySelector('svg');
+            if (!svg) return alert('SVG invalide');
+            
+            const vb = svg.getAttribute('viewBox');
+            if (vb) {
+                const [x, y, w, h] = vb.split(/\s+/).map(Number);
+                svgViewBox = { x, y, w, h };
+            } else {
+                svgViewBox.w = parseFloat(svg.getAttribute('width')) || 1920;
+                svgViewBox.h = parseFloat(svg.getAttribute('height')) || 1080;
+            }
+            
+            paths = [];
+            doc.querySelectorAll('path, line, rect, circle, ellipse, polygon').forEach(el => {
+                let d = el.getAttribute('d');
+                
+                if (!d) {
+                    if (el.tagName === 'line') {
+                        const x1 = el.getAttribute('x1') || 0;
+                        const y1 = el.getAttribute('y1') || 0;
+                        const x2 = el.getAttribute('x2') || 0;
+                        const y2 = el.getAttribute('y2') || 0;
+                        d = `M ${x1} ${y1} L ${x2} ${y2}`;
+                    } else if (el.tagName === 'rect') {
+                        const x = parseFloat(el.getAttribute('x') || 0);
+                        const y = parseFloat(el.getAttribute('y') || 0);
+                        const w = parseFloat(el.getAttribute('width') || 0);
+                        const h = parseFloat(el.getAttribute('height') || 0);
+                        d = `M ${x} ${y} L ${x+w} ${y} L ${x+w} ${y+h} L ${x} ${y+h} Z`;
+                    } else if (el.tagName === 'circle') {
+                        const cx = parseFloat(el.getAttribute('cx') || 0);
+                        const cy = parseFloat(el.getAttribute('cy') || 0);
+                        const r = parseFloat(el.getAttribute('r') || 0);
+                        d = `M ${cx-r} ${cy} A ${r} ${r} 0 1 1 ${cx+r} ${cy} A ${r} ${r} 0 1 1 ${cx-r} ${cy}`;
+                    }
+                }
+                
+                if (d) {
+                    const isClosed = d.match(/[Zz]\s*$/);
+                    paths.push({ d, isClosed: !!isClosed });
+                }
+            });
+            
+            // Assigner random modes
+            pathRenderModes = paths.map(() => Math.random() > 0.5 ? 'fill' : 'stroke');
+            
+            updateStatus('SVG: ✅');
+            updateStatus('Paths: ' + paths.length);
+            console.log('✅', paths.length, 'paths chargés');
+        }
+        
+        // Palette
+        document.getElementById('paletteFile').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                try {
+                    const content = ev.target.result;
+                    let colorArray = [];
+                    
+                    if (content.includes('[')) {
+                        const match = content.match(/\[.*\]/s);
+                        if (match) colorArray = JSON.parse(match[0]);
+                    } else if (content.includes('#')) {
+                        colorArray = content.split(/[,;\n]/).map(c => c.trim()).filter(c => c.startsWith('#'));
+                    }
+                    
+                    colorArray = colorArray.filter(c => /^#[0-9A-Fa-f]{6}$/.test(c));
+                    
+                    if (colorArray.length > 0) {
+                        colors = colorArray;
+                        rebuildPalette();
+                        alert('✅ ' + colorArray.length + ' couleurs');
+                    }
+                } catch (err) {
+                    alert('❌ ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        });
+        
+        function rebuildPalette() {
+            const container = document.getElementById('colorPalette');
+            container.innerHTML = '';
+            colors.forEach((c, i) => {
+                const input = document.createElement('input');
+                input.type = 'color';
+                input.value = c;
+                input.className = 'w-full h-8 rounded';
+                input.addEventListener('change', (e) => { colors[i] = e.target.value; });
+                container.appendChild(input);
+            });
+        }
+        
+        function addColor() {
+            colors.push('#ffffff');
+            rebuildPalette();
+        }
+        
+        function removeColor() {
+            if (colors.length > 1) {
+                colors.pop();
+                rebuildPalette();
+            }
+        }
+        
+        // Controls
+        document.getElementById('duration').addEventListener('input', (e) => {
+            document.getElementById('durVal').textContent = e.target.value;
+        });
+        
+        document.getElementById('speed').addEventListener('input', (e) => {
+            document.getElementById('speedVal').textContent = (+e.target.value).toFixed(1);
+        });
+        
+        document.getElementById('glow').addEventListener('input', (e) => {
+            document.getElementById('glowVal').textContent = e.target.value;
+        });
+        
+        document.getElementById('pathDelay').addEventListener('input', (e) => {
+            document.getElementById('delayVal').textContent = (+e.target.value).toFixed(2);
+        });
+        
+        document.getElementById('ballCount').addEventListener('input', (e) => {
+            document.getElementById('ballCountVal').textContent = e.target.value;
+        });
+        
+        document.getElementById('ballSize').addEventListener('input', (e) => {
+            document.getElementById('ballSizeVal').textContent = e.target.value;
+        });
+        
+        document.getElementById('ballSpeed').addEventListener('input', (e) => {
+            document.getElementById('ballSpeedVal').textContent = e.target.value;
+        });
+        
+        document.getElementById('gravity').addEventListener('input', (e) => {
+            document.getElementById('gravityVal').textContent = (+e.target.value).toFixed(1);
+        });
+        
+        document.getElementById('flashDuration').addEventListener('input', (e) => {
+            document.getElementById('flashDurVal').textContent = (+e.target.value).toFixed(1);
+        });
+        
+        function setRenderMode(mode) {
+            renderMode = mode;
+            document.getElementById('btnStroke').className = 'bg-gray-600 text-white py-1 rounded text-xs';
+            document.getElementById('btnFill').className = 'bg-gray-600 text-white py-1 rounded text-xs';
+            document.getElementById('btnRandom').className = 'bg-gray-600 text-white py-1 rounded text-xs';
+            
+            if (mode === 'stroke') document.getElementById('btnStroke').className = 'bg-cyan-600 text-white py-1 rounded text-xs';
+            if (mode === 'fill') document.getElementById('btnFill').className = 'bg-cyan-600 text-white py-1 rounded text-xs';
+            if (mode === 'random') document.getElementById('btnRandom').className = 'bg-cyan-600 text-white py-1 rounded text-xs';
+        }
+        
+        function updateControls() {
+            const effect = document.getElementById('effectSelect').value;
+            const descriptions = {
+                drawPath: 'Tracé progressif des paths',
+                liquidFill: 'Remplissage progressif comme un liquide',
+                fireTrail: 'Traînée de feu qui suit les paths',
+                morphStrokeFill: 'Transition stroke vers fill',
+                randomPop: 'Apparition aléatoire des paths',
+                explode: 'Explosion/implosion depuis le centre',
+                neonGlow: 'Activation néon progressive',
+                sparkle: 'Particules lumineuses sur les paths',
+                waveReveal: 'Vague qui révèle les paths',
+                bouncingBall: 'Balles qui rebondissent et activent les paths'
+            };
+            document.getElementById('effectDesc').textContent = descriptions[effect];
+            
+            // Show/hide controls safely
+            const glowEl = document.getElementById('glowControl');
+            const delayEl = document.getElementById('delayControl');
+            const ballEl = document.getElementById('ballControls');
+            
+            if (glowEl) glowEl.style.display = effect !== 'bouncingBall' ? 'block' : 'none';
+            if (delayEl) delayEl.style.display = (effect === 'drawPath' || effect === 'fireTrail' || effect === 'neonGlow' || effect === 'sparkle') ? 'block' : 'none';
+            if (ballEl) ballEl.style.display = effect === 'bouncingBall' ? 'block' : 'none';
+            
+            console.log('Effect changed to:', effect);
+            console.log('Ball controls display:', ballEl ? ballEl.style.display : 'element not found');
+        }
+        
+        // Transform Point
+        function transformPoint(pt) {
+            const w = +document.getElementById('resW').value;
+            const h = +document.getElementById('resH').value;
+            const scaleX = w / svgViewBox.w;
+            const scaleY = h / svgViewBox.h;
+            const scale = Math.min(scaleX, scaleY);
+            const sw = svgViewBox.w * scale;
+            const sh = svgViewBox.h * scale;
+            const ox = (w - sw) / 2;
+            const oy = (h - sh) / 2;
+            
+            return {
+                x: (pt.x - svgViewBox.x) * scale + ox,
+                y: (pt.y - svgViewBox.y) * scale + oy
+            };
+        }
+        
+        // Preview
+        function startPreview() {
+            if (!paths.length) return alert('⚠️ Chargez un SVG !');
+            
+            if (isPreviewPlaying) {
+                cancelAnimationFrame(previewFrame);
+                isPreviewPlaying = false;
+                return;
+            }
+            
+            isPreviewPlaying = true;
+            const startTime = Date.now();
+            const duration = +document.getElementById('duration').value * 1000;
+            
+            function animate() {
+                if (!isPreviewPlaying) return;
+                
+                const elapsed = Date.now() - startTime;
+                let progress = Math.min(elapsed / duration, 1);
+                
+                if (document.getElementById('reverse').checked) {
+                    progress = 1 - progress;
+                }
+                
+                renderFrame(progress);
+                
+                if (elapsed < duration) {
+                    previewFrame = requestAnimationFrame(animate);
+                } else {
+                    isPreviewPlaying = false;
+                }
+            }
+            
+            animate();
+        }
+        
+        // Render Frame
+        function renderFrame(progress) {
+            const w = +document.getElementById('resW').value;
+            const h = +document.getElementById('resH').value;
+            canvas.width = w;
+            canvas.height = h;
+            
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, w, h);
+            
+            const effect = document.getElementById('effectSelect').value;
+            
+            if (effect === 'drawPath') {
+                renderDrawPath(progress);
+            } else if (effect === 'liquidFill') {
+                renderLiquidFill(progress);
+            } else if (effect === 'fireTrail') {
+                renderFireTrail(progress);
+            } else if (effect === 'morphStrokeFill') {
+                renderMorphStrokeFill(progress);
+            } else if (effect === 'randomPop') {
+                renderRandomPop(progress);
+            } else if (effect === 'explode') {
+                renderExplode(progress);
+            } else if (effect === 'neonGlow') {
+                renderNeonGlow(progress);
+            } else if (effect === 'sparkle') {
+                renderSparkle(progress);
+            } else if (effect === 'waveReveal') {
+                renderWaveReveal(progress);
+            } else if (effect === 'bouncingBall') {
+                renderBouncingBall(progress);
+            }
+        }
+        
+        // BOUNCING BALL - NOUVEAU !
+        function renderBouncingBall(progress) {
+            const w = +document.getElementById('resW').value;
+            const h = +document.getElementById('resH').value;
+            const ballCount = +document.getElementById('ballCount').value;
+            const ballSize = +document.getElementById('ballSize').value;
+            const ballSpeed = +document.getElementById('ballSpeed').value;
+            const gravity = +document.getElementById('gravity').value;
+            const flashDur = +document.getElementById('flashDuration').value;
+            const glow = +document.getElementById('glow').value;
+            
+            console.log('Bouncing Ball:', { progress, ballCount, ballSize, ballSpeed, gravity });
+            
+            // Initialiser les balles et états au début OU si config change
+            if (balls.length !== ballCount || progress < 0.01) {
+                console.log('Initialisation des balles...');
+                balls = [];
+                pathFlashStates = paths.map(() => ({ intensity: 0, lastHit: -999 }));
+                
+                for (let i = 0; i < ballCount; i++) {
+                    balls.push({
+                        x: Math.random() * (w - ballSize * 2) + ballSize,
+                        y: Math.random() * (h * 0.3) + ballSize,
+                        vx: (Math.random() - 0.5) * ballSpeed * 2,
+                        vy: Math.random() * ballSpeed,
+                        color: colors[i % colors.length]
+                    });
+                }
+                console.log('Balles créées:', balls.length);
+            }
+            
+            // Convertir paths en segments pour collision
+            const segments = [];
+            paths.forEach((path, pathIdx) => {
+                const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathEl.setAttribute('d', path.d);
+                document.body.appendChild(pathEl);
+                
+                const len = pathEl.getTotalLength();
+                const step = 15;
+                
+                for (let i = 0; i < len; i += step) {
+                    const p1 = transformPoint(pathEl.getPointAtLength(i));
+                    const p2 = transformPoint(pathEl.getPointAtLength(Math.min(i + step, len)));
+                    segments.push({ x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, pathIdx });
+                }
+                
+                document.body.removeChild(pathEl);
+            });
+            
+            // Update balles
+            balls.forEach(ball => {
+                ball.vy += gravity * 0.5;
+                ball.x += ball.vx;
+                ball.y += ball.vy;
+                
+                // Rebonds sur les bords
+                if (ball.x < ballSize) { 
+                    ball.x = ballSize; 
+                    ball.vx = Math.abs(ball.vx) * 0.9; 
+                }
+                if (ball.x > w - ballSize) { 
+                    ball.x = w - ballSize; 
+                    ball.vx = -Math.abs(ball.vx) * 0.9; 
+                }
+                if (ball.y < ballSize) { 
+                    ball.y = ballSize; 
+                    ball.vy = Math.abs(ball.vy) * 0.9; 
+                }
+                if (ball.y > h - ballSize) { 
+                    ball.y = h - ballSize; 
+                    ball.vy = -Math.abs(ball.vy) * 0.7;
+                    ball.vx *= 0.95; // Friction
+                }
+                
+                // Collision avec paths
+                segments.forEach(seg => {
+                    if (lineCircleCollision(seg.x1, seg.y1, seg.x2, seg.y2, ball.x, ball.y, ballSize)) {
+                        const dx = seg.x2 - seg.x1;
+                        const dy = seg.y2 - seg.y1;
+                        const len = Math.sqrt(dx * dx + dy * dy);
+                        if (len > 0) {
+                            const nx = -dy / len;
+                            const ny = dx / len;
+                            
+                            const dot = ball.vx * nx + ball.vy * ny;
+                            ball.vx -= 2 * dot * nx * 0.8;
+                            ball.vy -= 2 * dot * ny * 0.8;
+                            
+                            pathFlashStates[seg.pathIdx].intensity = 1.0;
+                            pathFlashStates[seg.pathIdx].lastHit = progress;
+                        }
+                    }
+                });
+            });
+            
+            // Dessiner les paths avec flash
+            paths.forEach((path, i) => {
+                const state = pathFlashStates[i];
+                const timeSinceHit = progress - state.lastHit;
+                
+                if (timeSinceHit >= 0 && timeSinceHit < flashDur) {
+                    const fadeProgress = timeSinceHit / flashDur;
+                    state.intensity = Math.max(0, 1 - fadeProgress);
+                }
+                
+                if (state.intensity > 0.05) {
+                    const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    pathEl.setAttribute('d', path.d);
+                    document.body.appendChild(pathEl);
+                    
+                    const len = pathEl.getTotalLength();
+                    const color = colors[i % colors.length];
+                    
+                    // Glow
+                    if (glow > 0) {
+                        for (let g = glow * state.intensity; g > 0; g -= 3) {
+                            ctx.strokeStyle = color;
+                            ctx.globalAlpha = 0.2 * state.intensity;
+                            ctx.lineWidth = 3 + g;
+                            ctx.lineCap = 'round';
+                            ctx.beginPath();
+                            for (let j = 0; j <= len; j += 5) {
+                                const pt = transformPoint(pathEl.getPointAtLength(j));
+                                if (j === 0) ctx.moveTo(pt.x, pt.y);
+                                else ctx.lineTo(pt.x, pt.y);
+                            }
+                            ctx.stroke();
+                        }
+                    }
+                    
+                    // Path
+                    ctx.globalAlpha = state.intensity;
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 4;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    for (let j = 0; j <= len; j += 2) {
+                        const pt = transformPoint(pathEl.getPointAtLength(j));
+                        if (j === 0) ctx.moveTo(pt.x, pt.y);
+                        else ctx.lineTo(pt.x, pt.y);
+                    }
+                    ctx.stroke();
+                    ctx.globalAlpha = 1;
+                    
+                    document.body.removeChild(pathEl);
+                }
+            });
+            
+            // Dessiner les balles
+            balls.forEach(ball => {
+                // Ombre
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.beginPath();
+                ctx.arc(ball.x, ball.y + 5, ballSize * 0.8, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Gradient radial
+                const gradient = ctx.createRadialGradient(
+                    ball.x - ballSize * 0.3, 
+                    ball.y - ballSize * 0.3, 
+                    0, 
+                    ball.x, 
+                    ball.y, 
+                    ballSize
+                );
+                gradient.addColorStop(0, '#fff');
+                gradient.addColorStop(0.5, ball.color);
+                gradient.addColorStop(1, '#222');
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(ball.x, ball.y, ballSize, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Highlight
+                ctx.fillStyle = 'rgba(255,255,255,0.6)';
+                ctx.beginPath();
+                ctx.arc(ball.x - ballSize * 0.3, ball.y - ballSize * 0.3, ballSize * 0.3, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+        
+        // Collision ligne-cercle
+        function lineCircleCollision(x1, y1, x2, y2, cx, cy, r) {
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const len = Math.sqrt(dx * dx + dy * dy);
+            if (len === 0) return false;
+            
+            const dot = ((cx - x1) * dx + (cy - y1) * dy) / (len * len);
+            const closestX = x1 + dot * dx;
+            const closestY = y1 + dot * dy;
+            
+            if (dot < 0 || dot > 1) {
+                const d1 = Math.sqrt((cx - x1) ** 2 + (cy - y1) ** 2);
+                const d2 = Math.sqrt((cx - x2) ** 2 + (cy - y2) ** 2);
+                return Math.min(d1, d2) < r;
+            }
+            
+            const dist = Math.sqrt((cx - closestX) ** 2 + (cy - closestY) ** 2);
+            return dist < r;
+        }
+        
+        // DRAW PATH
+        function renderDrawPath(progress) {
+            const delay = +document.getElementById('pathDelay').value;
+            const glow = +document.getElementById('glow').value;
+            
+            paths.forEach((path, i) => {
+                const pathStart = (i / paths.length) * delay;
+                const pathProgress = Math.max(0, Math.min(1, (progress - pathStart) / (1 - pathStart)));
+                
+                if (pathProgress <= 0) return;
+                
+                const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathEl.setAttribute('d', path.d);
+                document.body.appendChild(pathEl);
+                
+                const len = pathEl.getTotalLength();
+                const drawLen = len * pathProgress;
+                const color = colors[i % colors.length];
+                
+                const mode = renderMode === 'random' ? pathRenderModes[i] : renderMode;
+                const useFill = mode === 'fill' && path.isClosed;
+                
+                // Glow
+                if (glow > 0 && !useFill) {
+                    for (let g = glow; g > 0; g -= 3) {
+                        ctx.strokeStyle = color;
+                        ctx.globalAlpha = 0.15;
+                        ctx.lineWidth = 3 + g;
+                        ctx.lineCap = 'round';
+                        ctx.beginPath();
+                        for (let j = 0; j <= drawLen; j += 5) {
+                            const pt = transformPoint(pathEl.getPointAtLength(Math.min(j, len)));
+                            if (j === 0) ctx.moveTo(pt.x, pt.y);
+                            else ctx.lineTo(pt.x, pt.y);
+                        }
+                        ctx.stroke();
+                    }
+                }
+                
+                ctx.globalAlpha = 1;
+                
+                if (useFill && pathProgress >= 1) {
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+                    for (let j = 0; j <= len; j += 5) {
+                        const pt = transformPoint(pathEl.getPointAtLength(Math.min(j, len)));
+                        if (j === 0) ctx.moveTo(pt.x, pt.y);
+                        else ctx.lineTo(pt.x, pt.y);
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+                } else {
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 3;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    for (let j = 0; j <= drawLen; j += 2) {
+                        const pt = transformPoint(pathEl.getPointAtLength(Math.min(j, len)));
+                        if (j === 0) ctx.moveTo(pt.x, pt.y);
+                        else ctx.lineTo(pt.x, pt.y);
+                    }
+                    ctx.stroke();
+                }
+                
+                document.body.removeChild(pathEl);
+            });
+        }
+        
+        // LIQUID FILL
+        function renderLiquidFill(progress) {
+            const glow = +document.getElementById('glow').value;
+            
+            paths.forEach((path, i) => {
+                if (!path.isClosed) return;
+                
+                const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathEl.setAttribute('d', path.d);
+                document.body.appendChild(pathEl);
+                
+                const len = pathEl.getTotalLength();
+                const color = colors[i % colors.length];
+                
+                // Trouver bbox
+                let minY = Infinity, maxY = -Infinity;
+                for (let j = 0; j <= len; j += 10) {
+                    const pt = transformPoint(pathEl.getPointAtLength(j));
+                    if (j === 0) ctx.moveTo(pt.x, pt.y);
+                    else ctx.lineTo(pt.x, pt.y);
+                }
+                ctx.closePath();
+                ctx.fill();
+                
+                // Stroke
+                ctx.globalAlpha = 1 - progress * 0.7;
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                for (let j = 0; j <= len; j += 2) {
+                    const pt = transformPoint(pathEl.getPointAtLength(j));
+                    if (j === 0) ctx.moveTo(pt.x, pt.y);
+                    else ctx.lineTo(pt.x, pt.y);
+                }
+                ctx.closePath();
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+                
+                document.body.removeChild(pathEl);
+            });
+        }
+        
+        // RANDOM POP
+        function renderRandomPop(progress) {
+            const glow = +document.getElementById('glow').value;
+            const totalPaths = paths.length;
+            const pathsToShow = Math.floor(totalPaths * progress);
+            
+            // Ordre aléatoire mais cohérent
+            const order = paths.map((_, i) => ({ i, r: Math.sin(i * 9999) })).sort((a, b) => a.r - b.r);
+            
+            for (let idx = 0; idx < pathsToShow; idx++) {
+                const i = order[idx].i;
+                const path = paths[i];
+                
+                const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathEl.setAttribute('d', path.d);
+                document.body.appendChild(pathEl);
+                
+                const len = pathEl.getTotalLength();
+                const color = colors[i % colors.length];
+                const mode = renderMode === 'random' ? pathRenderModes[i] : renderMode;
+                const useFill = mode === 'fill' && path.isClosed;
+                
+                // Animation d'apparition
+                const appearProgress = Math.min(1, (pathsToShow - idx) / 5);
+                
+                if (glow > 0 && !useFill) {
+                    for (let g = glow * appearProgress; g > 0; g -= 3) {
+                        ctx.strokeStyle = color;
+                        ctx.globalAlpha = 0.15 * appearProgress;
+                        ctx.lineWidth = 3 + g;
+                        ctx.beginPath();
+                        for (let j = 0; j <= len; j += 5) {
+                            const pt = transformPoint(pathEl.getPointAtLength(j));
+                            if (j === 0) ctx.moveTo(pt.x, pt.y);
+                            else ctx.lineTo(pt.x, pt.y);
+                        }
+                        if (useFill) ctx.closePath();
+                        ctx.stroke();
+                    }
+                }
+                
+                ctx.globalAlpha = appearProgress;
+                
+                if (useFill) {
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+                    for (let j = 0; j <= len; j += 3) {
+                        const pt = transformPoint(pathEl.getPointAtLength(j));
+                        if (j === 0) ctx.moveTo(pt.x, pt.y);
+                        else ctx.lineTo(pt.x, pt.y);
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+                } else {
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    for (let j = 0; j <= len; j += 2) {
+                        const pt = transformPoint(pathEl.getPointAtLength(j));
+                        if (j === 0) ctx.moveTo(pt.x, pt.y);
+                        else ctx.lineTo(pt.x, pt.y);
+                    }
+                    ctx.stroke();
+                }
+                
+                ctx.globalAlpha = 1;
+                document.body.removeChild(pathEl);
+            }
+        }
+        
+        // EXPLODE
+        function renderExplode(progress) {
+            const w = +document.getElementById('resW').value;
+            const h = +document.getElementById('resH').value;
+            const centerX = w / 2;
+            const centerY = h / 2;
+            
+            paths.forEach((path, i) => {
+                const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathEl.setAttribute('d', path.d);
+                document.body.appendChild(pathEl);
+                
+                const len = pathEl.getTotalLength();
+                const midPt = transformPoint(pathEl.getPointAtLength(len / 2));
+                const color = colors[i % colors.length];
+                
+                // Direction depuis le centre
+                const dx = midPt.x - centerX;
+                const dy = midPt.y - centerY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const maxDist = Math.sqrt(w * w + h * h) / 2;
+                
+                // Explosion puis retour
+                const explodeProgress = progress < 0.5 ? progress * 2 : 2 - progress * 2;
+                const offsetX = (dx / distance) * maxDist * explodeProgress * 0.5;
+                const offsetY = (dy / distance) * maxDist * explodeProgress * 0.5;
+                
+                ctx.save();
+                ctx.translate(offsetX, offsetY);
+                ctx.globalAlpha = 1 - explodeProgress * 0.5;
+                
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                for (let j = 0; j <= len; j += 2) {
+                    const pt = transformPoint(pathEl.getPointAtLength(j));
+                    if (j === 0) ctx.moveTo(pt.x, pt.y);
+                    else ctx.lineTo(pt.x, pt.y);
+                }
+                ctx.stroke();
+                
+                ctx.restore();
+                document.body.removeChild(pathEl);
+            });
+        }
+        
+        // NEON GLOW
+        function renderNeonGlow(progress) {
+            const delay = +document.getElementById('pathDelay').value;
+            
+            paths.forEach((path, i) => {
+                const pathStart = (i / paths.length) * delay;
+                const pathProgress = Math.max(0, Math.min(1, (progress - pathStart) / (1 - pathStart)));
+                
+                if (pathProgress <= 0) return;
+                
+                const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathEl.setAttribute('d', path.d);
+                document.body.appendChild(pathEl);
+                
+                const len = pathEl.getTotalLength();
+                const color = colors[i % colors.length];
+                
+                // Neon glow multiple layers
+                const glowLayers = [40, 30, 20, 10];
+                glowLayers.forEach(size => {
+                    ctx.strokeStyle = color;
+                    ctx.globalAlpha = 0.1 * pathProgress;
+                    ctx.lineWidth = size;
+                    ctx.lineCap = 'round';
+                    ctx.shadowBlur = size;
+                    ctx.shadowColor = color;
+                    ctx.beginPath();
+                    for (let j = 0; j <= len; j += 3) {
+                        const pt = transformPoint(pathEl.getPointAtLength(j));
+                        if (j === 0) ctx.moveTo(pt.x, pt.y);
+                        else ctx.lineTo(pt.x, pt.y);
+                    }
+                    ctx.stroke();
+                });
+                
+                // Core
+                ctx.strokeStyle = '#fff';
+                ctx.globalAlpha = pathProgress;
+                ctx.lineWidth = 2;
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = color;
+                ctx.beginPath();
+                for (let j = 0; j <= len; j += 1) {
+                    const pt = transformPoint(pathEl.getPointAtLength(j));
+                    if (j === 0) ctx.moveTo(pt.x, pt.y);
+                    else ctx.lineTo(pt.x, pt.y);
+                }
+                ctx.stroke();
+                
+                ctx.shadowBlur = 0;
+                ctx.globalAlpha = 1;
+                document.body.removeChild(pathEl);
+            });
+        }
+        
+        // SPARKLE
+        function renderSparkle(progress) {
+            const delay = +document.getElementById('pathDelay').value;
+            
+            paths.forEach((path, i) => {
+                const pathStart = (i / paths.length) * delay;
+                const pathProgress = Math.max(0, Math.min(1, (progress - pathStart) / (1 - pathStart)));
+                
+                if (pathProgress <= 0) return;
+                
+                const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathEl.setAttribute('d', path.d);
+                document.body.appendChild(pathEl);
+                
+                const len = pathEl.getTotalLength();
+                const drawLen = len * pathProgress;
+                const color = colors[i % colors.length];
+                
+                // Sparkles
+                const numSparkles = 30;
+                for (let s = 0; s < numSparkles; s++) {
+                    const sparklePos = drawLen - (s / numSparkles) * 50;
+                    if (sparklePos < 0 || sparklePos > drawLen) continue;
+                    
+                    const pt = transformPoint(pathEl.getPointAtLength(Math.min(sparklePos, len)));
+                    const size = 2 + Math.random() * 4;
+                    const alpha = 1 - (s / numSparkles);
+                    
+                    ctx.fillStyle = '#fff';
+                    ctx.globalAlpha = alpha;
+                    ctx.beginPath();
+                    ctx.arc(pt.x, pt.y, size, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Cross sparkle
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(pt.x - size * 2, pt.y);
+                    ctx.lineTo(pt.x + size * 2, pt.y);
+                    ctx.moveTo(pt.x, pt.y - size * 2);
+                    ctx.lineTo(pt.x, pt.y + size * 2);
+                    ctx.stroke();
+                }
+                
+                // Path
+                ctx.globalAlpha = 1;
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                for (let j = 0; j <= drawLen; j += 2) {
+                    const pt = transformPoint(pathEl.getPointAtLength(Math.min(j, len)));
+                    if (j === 0) ctx.moveTo(pt.x, pt.y);
+                    else ctx.lineTo(pt.x, pt.y);
+                }
+                ctx.stroke();
+                
+                document.body.removeChild(pathEl);
+            });
+        }
+        
+        // WAVE REVEAL
+        function renderWaveReveal(progress) {
+            const w = +document.getElementById('resW').value;
+            const waveX = w * progress;
+            const waveWidth = 200;
+            
+            paths.forEach((path, i) => {
+                const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathEl.setAttribute('d', path.d);
+                document.body.appendChild(pathEl);
+                
+                const len = pathEl.getTotalLength();
+                const color = colors[i % colors.length];
+                
+                // Calculer quelles parties du path révéler
+                for (let j = 0; j <= len; j += 5) {
+                    const pt = transformPoint(pathEl.getPointAtLength(j));
+                    
+                    if (pt.x < waveX - waveWidth) continue;
+                    if (pt.x > waveX + waveWidth) break;
+                    
+                    const dist = Math.abs(pt.x - waveX);
+                    const intensity = 1 - (dist / waveWidth);
+                    
+                    if (intensity > 0) {
+                        ctx.fillStyle = color;
+                        ctx.globalAlpha = intensity;
+                        ctx.beginPath();
+                        ctx.arc(pt.x, pt.y, 3, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+                
+                // Path complet si passé
+                if (waveX > w) {
+                    ctx.globalAlpha = 1;
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    for (let j = 0; j <= len; j += 2) {
+                        const pt = transformPoint(pathEl.getPointAtLength(j));
+                        if (j === 0) ctx.moveTo(pt.x, pt.y);
+                        else ctx.lineTo(pt.x, pt.y);
+                    }
+                    ctx.stroke();
+                }
+                
+                ctx.globalAlpha = 1;
+                document.body.removeChild(pathEl);
+            });
+        }
+        
+        // Render Export
+        async function startRender() {
+            if (!paths.length) return alert('⚠️ Chargez un SVG !');
+            
+            document.getElementById('renderProgress').classList.remove('hidden');
+            
+            try {
+                const fps = +document.getElementById('fps').value;
+                const duration = +document.getElementById('duration').value;
+                const totalFrames = fps * duration;
+                const frames = [];
+                
+                for (let i = 0; i < totalFrames; i++) {
+                    let progress = i / (totalFrames - 1);
+                    if (document.getElementById('reverse').checked) {
+                        progress = 1 - progress;
+                    }
+                    
+                    renderFrame(progress);
+                    frames.push(canvas.toDataURL('image/png'));
+                    
+                    const prog = Math.floor((i + 1) / totalFrames * 100);
+                    document.getElementById('progressBar').style.width = prog + '%';
+                    document.getElementById('progressText').textContent = prog + '%';
+                    
+                    if (i % 10 === 0) await new Promise(r => setTimeout(r, 0));
+                }
+                
+                const zip = new JSZip();
+                const folder = zip.folder('frames');
+                frames.forEach((data, i) => {
+                    const num = String(i).padStart(4, '0');
+                    folder.file(`frame_${num}.png`, data.split(',')[1], {base64: true});
+                });
+                
+                const blob = await zip.generateAsync({type: 'blob'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `svg_animation_${Date.now()}.zip`;
+                a.click();
+                
+                alert('✅ ' + frames.length + ' frames !');
+                
+            } catch(e) {
+                alert('❌ ' + e.message);
+            }
+            
+            document.getElementById('renderProgress').classList.add('hidden');
+        }
+        
+        // Test function
+        function testBouncingBall() {
+            console.log('=== TEST BOUNCING BALL ===');
+            console.log('Paths loaded:', paths.length);
+            console.log('Effect selected:', document.getElementById('effectSelect').value);
+            console.log('Ball controls visible:', document.getElementById('ballControls').style.display);
+            console.log('Ball count:', document.getElementById('ballCount').value);
+            console.log('Ball size:', document.getElementById('ballSize').value);
+            
+            if (paths.length === 0) {
+                alert('⚠️ Chargez un SVG d\'abord !');
+                return;
+            }
+            
+            // Force bouncing ball effect
+            document.getElementById('effectSelect').value = 'bouncingBall';
+            updateControls();
+            
+            // Render one frame
+            console.log('Rendering frame 0.5...');
+            renderFrame(0.5);
+            console.log('Balls:', balls);
+            console.log('Path flash states:', pathFlashStates);
+        }
+        
+        function updateStatus(msg) {
+            const status = document.getElementById('status');
+            const lines = status.innerHTML.match(/<p>.*?<\/p>/g) || ['<p>SVG: ❌</p>', '<p>Paths: 0</p>'];
+            if (msg.includes('SVG')) lines[0] = '<p>' + msg + '</p>';
+            if (msg.includes('Paths')) lines[1] = '<p>' + msg + '</p>';
+            status.innerHTML = lines.join('');
+        }
+        
+        updateControls();
+    </script>
+</body>
+</html>));
+                    minY = Math.min(minY, pt.y);
+                    maxY = Math.max(maxY, pt.y);
+                }
+                
+                const fillHeight = minY + (maxY - minY) * progress;
+                
+                // Glow
+                if (glow > 0) {
+                    for (let g = glow; g > 0; g -= 3) {
+                        ctx.strokeStyle = color;
+                        ctx.globalAlpha = 0.1;
+                        ctx.lineWidth = 3 + g;
+                        ctx.beginPath();
+                        for (let j = 0; j <= len; j += 5) {
+                            const pt = transformPoint(pathEl.getPointAtLength(j));
+                            if (j === 0) ctx.moveTo(pt.x, pt.y);
+                            else ctx.lineTo(pt.x, pt.y);
+                        }
+                        ctx.closePath();
+                        ctx.stroke();
+                    }
+                }
+                
+                // Clip et fill
+                ctx.save();
+                ctx.globalAlpha = 1;
+                ctx.beginPath();
+                for (let j = 0; j <= len; j += 3) {
+                    const pt = transformPoint(pathEl.getPointAtLength(j));
+                    if (j === 0) ctx.moveTo(pt.x, pt.y);
+                    else ctx.lineTo(pt.x, pt.y);
+                }
+                ctx.closePath();
+                ctx.clip();
+                
+                ctx.fillStyle = color;
+                ctx.fillRect(0, fillHeight, canvas.width, canvas.height - fillHeight);
+                ctx.restore();
+                
+                // Contour
+                ctx.strokeStyle = color;
+                ctx.globalAlpha = 0.5;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                for (let j = 0; j <= len; j += 3) {
+                    const pt = transformPoint(pathEl.getPointAtLength(j));
+                    if (j === 0) ctx.moveTo(pt.x, pt.y);
+                    else ctx.lineTo(pt.x, pt.y);
+                }
+                ctx.closePath();
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+                
+                document.body.removeChild(pathEl);
+            });
+        }
+        
+        // FIRE TRAIL
+        function renderFireTrail(progress) {
+            const delay = +document.getElementById('pathDelay').value;
+            
+            paths.forEach((path, i) => {
+                const pathStart = (i / paths.length) * delay;
+                const pathProgress = Math.max(0, Math.min(1, (progress - pathStart) / (1 - pathStart)));
+                
+                if (pathProgress <= 0) return;
+                
+                const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathEl.setAttribute('d', path.d);
+                document.body.appendChild(pathEl);
+                
+                const len = pathEl.getTotalLength();
+                const drawLen = len * pathProgress;
+                const color = colors[i % colors.length];
+                
+                // Fire particles le long du path
+                const numParticles = 50;
+                for (let p = 0; p < numParticles; p++) {
+                    const particlePos = (p / numParticles) * drawLen;
+                    if (particlePos > drawLen) continue;
+                    
+                    const pt = transformPoint(pathEl.getPointAtLength(particlePos));
+                    const life = 1 - ((drawLen - particlePos) / drawLen);
+                    const size = 5 + Math.random() * 10;
+                    
+                    // Gradient radial
+                    const gradient = ctx.createRadialGradient(pt.x, pt.y, 0, pt.x, pt.y, size);
+                    gradient.addColorStop(0, color);
+                    gradient.addColorStop(0.5, color + '88');
+                    gradient.addColorStop(1, 'transparent');
+                    
+                    ctx.fillStyle = gradient;
+                    ctx.globalAlpha = life;
+                    ctx.beginPath();
+                    ctx.arc(pt.x, pt.y + Math.random() * 10, size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                ctx.globalAlpha = 1;
+                
+                // Path principal
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = color;
+                ctx.beginPath();
+                for (let j = 0; j <= drawLen; j += 2) {
+                    const pt = transformPoint(pathEl.getPointAtLength(Math.min(j, len)));
+                    if (j === 0) ctx.moveTo(pt.x, pt.y);
+                    else ctx.lineTo(pt.x, pt.y);
+                }
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+                
+                document.body.removeChild(pathEl);
+            });
+        }
+        
+        // MORPH STROKE FILL
+        function renderMorphStrokeFill(progress) {
+            const glow = +document.getElementById('glow').value;
+            
+            paths.forEach((path, i) => {
+                if (!path.isClosed) return;
+                
+                const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathEl.setAttribute('d', path.d);
+                document.body.appendChild(pathEl);
+                
+                const len = pathEl.getTotalLength();
+                const color = colors[i % colors.length];
+                
+                // Glow
+                if (glow > 0) {
+                    for (let g = glow * (1 - progress * 0.7); g > 0; g -= 3) {
+                        ctx.strokeStyle = color;
+                        ctx.globalAlpha = 0.1;
+                        ctx.lineWidth = 3 + g;
+                        ctx.beginPath();
+                        for (let j = 0; j <= len; j += 5) {
+                            const pt = transformPoint(pathEl.getPointAtLength(j));
+                            if (j === 0) ctx.moveTo(pt.x, pt.y);
+                            else ctx.lineTo(pt.x, pt.y);
+                        }
+                        ctx.closePath();
+                        ctx.stroke();
+                    }
+                }
+                
+                ctx.globalAlpha = 1;
+                
+                // Fill progressif
+                ctx.fillStyle = color;
+                ctx.globalAlpha = progress * 0.8;
+                ctx.beginPath();
+                for (let j = 0; j <= len; j += 3) {
+                    const pt = transformPoint(pathEl.getPointAtLength(j

@@ -1,0 +1,3182 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Projection Mapping Animator</title>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useRef, useEffect } = React;
+
+        const ProjectionMappingAnimator = () => {
+          const [svgContent, setSvgContent] = useState(null);
+          const [paths, setPaths] = useState([]);
+          const [isPlaying, setIsPlaying] = useState(false);
+          const [segmentLength, setSegmentLength] = useState(35);
+          const [speed, setSpeed] = useState(1);
+          const [particleCount, setParticleCount] = useState(3);
+          const [colors, setColors] = useState(['#00ffff', '#ff00ff', '#ffff00', '#00ff00']);
+          const [resolution, setResolution] = useState({ width: 1920, height: 1080 });
+          const [glowIntensity, setGlowIntensity] = useState(15);
+          const [fadeIntensity, setFadeIntensity] = useState(0.7);
+          const [particles, setParticles] = useState([]);
+          const [svgViewBox, setSvgViewBox] = useState({ x: 0, y: 0, width: 1920, height: 1080 });
+          const [scale, setScale] = useState(1);
+          const [offset, setOffset] = useState({ x: 0, y: 0 });
+          const [isRecording, setIsRecording] = useState(false);
+          const [animationStartTime, setAnimationStartTime] = useState(null);
+          const [randomMode, setRandomMode] = useState(false);
+          const [activePathsPercent, setActivePathsPercent] = useState(100);
+          const [activePaths, setActivePaths] = useState([]);
+          const [pathCompletions, setPathCompletions] = useState({});
+          const [currentEffect, setCurrentEffect] = useState('strokeFlow');
+          const [waveAmplitude, setWaveAmplitude] = useState(50);
+          const [waveFrequency, setWaveFrequency] = useState(2);
+          const [waveSpeed, setWaveSpeed] = useState(1);
+          const [waveDirection, setWaveDirection] = useState('vertical');
+          const [renderMode, setRenderMode] = useState('stroke'); // 'stroke' ou 'fill'
+          const [pulseBPM, setPulseBPM] = useState(60);
+          const [pulseMinIntensity, setPulseMinIntensity] = useState(0.2);
+          const [pulseMaxIntensity, setPulseMaxIntensity] = useState(1);
+          const [burstOriginX, setBurstOriginX] = useState(50);
+          const [burstOriginY, setBurstOriginY] = useState(50);
+          const [burstSpeed, setBurstSpeed] = useState(1);
+          const [scanSpeed, setScanSpeed] = useState(1);
+          const [scanDirection, setScanDirection] = useState('leftRight');
+          const [scanThickness, setScanThickness] = useState(100);
+          const [lightningFrequency, setLightningFrequency] = useState(2);
+          const [lightningIntensity, setLightningIntensity] = useState(1.5);
+          const [lightningDuration, setLightningDuration] = useState(0.15);
+          const [lightningPaths, setLightningPaths] = useState([]);
+          const [snowflakes, setSnowflakes] = useState([]);
+          const [snowEmissionRate, setSnowEmissionRate] = useState(5);
+          const [snowGravity, setSnowGravity] = useState(50);
+          const [snowWind, setSnowWind] = useState(0);
+          const [snowInitialSize, setSnowInitialSize] = useState(8);
+          const [snowMeltSpeed, setSnowMeltSpeed] = useState(0.5);
+          const [showStrokesForCollision, setShowStrokesForCollision] = useState(true);
+          const [snowActivePathsPercent, setSnowActivePathsPercent] = useState(100);
+          const [snowActivePaths, setSnowActivePaths] = useState([]);
+          const [backgroundImage, setBackgroundImage] = useState(null);
+          const [showBackground, setShowBackground] = useState(true);
+          const [svgOffsetX, setSvgOffsetX] = useState(0);
+          const [svgOffsetY, setSvgOffsetY] = useState(0);
+          const [svgScale, setSvgScale] = useState(1);
+          const [isRenderingOffline, setIsRenderingOffline] = useState(false);
+          const [renderProgress, setRenderProgress] = useState(0);
+          const [renderDuration, setRenderDuration] = useState(10);
+          const [renderFPS, setRenderFPS] = useState(25);
+          const [renderFormat, setRenderFormat] = useState('png'); // 'png' ou 'webm'
+          const [renderCycles, setRenderCycles] = useState(3);
+          const [renderEffectType, setRenderEffectType] = useState('strokeFlow');
+          const [audioFile, setAudioFile] = useState(null);
+          const [audioContext, setAudioContext] = useState(null);
+          const [audioAnalyser, setAudioAnalyser] = useState(null);
+          const [audioSource, setAudioSource] = useState(null);
+          const [audioSensitivity, setAudioSensitivity] = useState(70);
+          const [audioSmoothing, setAudioSmoothing] = useState(0.8);
+          const [audioMode, setAudioMode] = useState('frequencyZones');
+          
+          const backgroundImageRef = useRef(null);
+          const offlineCanvasRef = useRef(null);
+          const audioElementRef = useRef(null);
+          
+          const canvasRef = useRef(null);
+          const animationRef = useRef(null);
+          const mediaRecorderRef = useRef(null);
+          const recordedChunksRef = useRef([]);
+
+          const handleFileUpload = (e) => {
+            const file = e.target.files[0];
+            if (file && file.type === 'image/svg+xml') {
+              const reader = new FileReader();
+              reader.onload = (event) => {
+                const content = event.target.result;
+                setSvgContent(content);
+                parseSVG(content);
+              };
+              reader.readAsText(file);
+            }
+          };
+
+          const handleBackgroundUpload = (e) => {
+            const file = e.target.files[0];
+            if (file && (file.type === 'image/jpeg' || file.type === 'image/jpg' || file.type === 'image/png')) {
+              const reader = new FileReader();
+              reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                  backgroundImageRef.current = img;
+                  setBackgroundImage(event.target.result);
+                };
+                img.src = event.target.result;
+              };
+              reader.readAsDataURL(file);
+            }
+          };
+
+          const handleAudioUpload = (e) => {
+            const file = e.target.files[0];
+            if (file && (file.type === 'audio/mpeg' || file.type === 'audio/wav' || file.type === 'audio/mp3')) {
+              setAudioFile(file);
+              
+              // Créer l'audio context
+              const ctx = new (window.AudioContext || window.webkitAudioContext)();
+              const analyser = ctx.createAnalyser();
+              analyser.fftSize = 2048;
+              analyser.smoothingTimeConstant = audioSmoothing;
+              
+              const audioElement = new Audio();
+              audioElement.src = URL.createObjectURL(file);
+              audioElementRef.current = audioElement;
+              
+              const source = ctx.createMediaElementSource(audioElement);
+              source.connect(analyser);
+              analyser.connect(ctx.destination);
+              
+              setAudioContext(ctx);
+              setAudioAnalyser(analyser);
+              setAudioSource(source);
+            }
+          };
+
+          const handlePaletteUpload = (e) => {
+            const file = e.target.files[0];
+            if (file && (file.type === 'text/plain' || file.name.endsWith('.txt') || file.name.endsWith('.json'))) {
+              const reader = new FileReader();
+              reader.onload = (event) => {
+                try {
+                  const content = event.target.result;
+                  
+                  console.log('Contenu du fichier:', content);
+                  
+                  // Parser le contenu (plusieurs formats possibles)
+                  let colorArray = [];
+                  
+                  // Format 1: ["#5f0f40","#9a031e",...] (Coolors array)
+                  if (content.includes('[') && content.includes(']')) {
+                    const jsonMatch = content.match(/\[.*\]/s);
+                    if (jsonMatch) {
+                      colorArray = JSON.parse(jsonMatch[0]);
+                    }
+                  }
+                  // Format 2: #5f0f40,#9a031e,... (CSV)
+                  else if (content.includes('#')) {
+                    colorArray = content.split(/[,;\n]/).map(c => c.trim()).filter(c => c.startsWith('#'));
+                  }
+                  // Format 3: rgb(95,15,64);rgb(154,3,30);... (RGB)
+                  else if (content.includes('rgb')) {
+                    const rgbMatches = content.match(/rgb\s*\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)/g);
+                    if (rgbMatches) {
+                      colorArray = rgbMatches.map(rgb => {
+                        const values = rgb.match(/\d+/g);
+                        const r = parseInt(values[0]).toString(16).padStart(2, '0');
+                        const g = parseInt(values[1]).toString(16).padStart(2, '0');
+                        const b = parseInt(values[2]).toString(16).padStart(2, '0');
+                        return `#${r}${g}${b}`;
+                      });
+                    }
+                  }
+
+                  console.log('Couleurs parsées:', colorArray);
+
+                  if (colorArray.length > 0) {
+                    // Valider que ce sont des couleurs hexadécimales valides
+                    colorArray = colorArray.filter(c => /^#[0-9A-Fa-f]{6}$/.test(c));
+                    
+                    console.log('Couleurs valides:', colorArray);
+                    
+                    if (colorArray.length > 0) {
+                      setColors(colorArray);
+                      alert(`✅ Palette importée avec succès !\n${colorArray.length} couleur(s) chargée(s).`);
+                    } else {
+                      alert('❌ Aucune couleur valide trouvée dans le fichier.');
+                    }
+                  } else {
+                    alert('❌ Format non reconnu. Utilisez un array Coolors ou des couleurs séparées par des virgules.');
+                  }
+                } catch (error) {
+                  console.error('Erreur parsing palette:', error);
+                  alert('❌ Erreur lors de la lecture du fichier: ' + error.message);
+                }
+              };
+              reader.readAsText(file);
+            } else {
+              alert('❌ Veuillez sélectionner un fichier .txt ou .json');
+            }
+          };
+
+          const getAudioData = () => {
+            if (!audioAnalyser) return { bass: 0, mids: 0, highs: 0, overall: 0 };
+            
+            const dataArray = new Uint8Array(audioAnalyser.frequencyBinCount);
+            audioAnalyser.getByteFrequencyData(dataArray);
+            
+            // Diviser en bandes de fréquences
+            const bassEnd = Math.floor(dataArray.length * 0.1);
+            const midsEnd = Math.floor(dataArray.length * 0.5);
+            
+            const bass = dataArray.slice(0, bassEnd).reduce((a, b) => a + b, 0) / bassEnd / 255;
+            const mids = dataArray.slice(bassEnd, midsEnd).reduce((a, b) => a + b, 0) / (midsEnd - bassEnd) / 255;
+            const highs = dataArray.slice(midsEnd).reduce((a, b) => a + b, 0) / (dataArray.length - midsEnd) / 255;
+            const overall = dataArray.reduce((a, b) => a + b, 0) / dataArray.length / 255;
+            
+            return { 
+              bass: bass * (audioSensitivity / 100), 
+              mids: mids * (audioSensitivity / 100), 
+              highs: highs * (audioSensitivity / 100),
+              overall: overall * (audioSensitivity / 100)
+            };
+          };
+
+          const parseSVG = (content) => {
+            const parser = new DOMParser();
+            const svgDoc = parser.parseFromString(content, 'image/svg+xml');
+            const svgElement = svgDoc.querySelector('svg');
+            
+            if (svgElement) {
+              let vbX = 0, vbY = 0, vbWidth = 1920, vbHeight = 1080;
+              
+              const viewBox = svgElement.getAttribute('viewBox');
+              if (viewBox) {
+                [vbX, vbY, vbWidth, vbHeight] = viewBox.split(/\s+/).map(Number);
+              } else {
+                vbWidth = parseFloat(svgElement.getAttribute('width')) || 1920;
+                vbHeight = parseFloat(svgElement.getAttribute('height')) || 1080;
+              }
+              
+              setSvgViewBox({ x: vbX, y: vbY, width: vbWidth, height: vbHeight });
+              
+              const scaleX = resolution.width / vbWidth;
+              const scaleY = resolution.height / vbHeight;
+              const newScale = Math.min(scaleX, scaleY);
+              setScale(newScale);
+              
+              const scaledWidth = vbWidth * newScale;
+              const scaledHeight = vbHeight * newScale;
+              setOffset({
+                x: (resolution.width - scaledWidth) / 2,
+                y: (resolution.height - scaledHeight) / 2
+              });
+              
+              const pathElements = svgDoc.querySelectorAll('path, line, polyline, polygon, circle, ellipse, rect');
+              const extractedPaths = [];
+              
+              pathElements.forEach((element) => {
+                let d = element.getAttribute('d');
+                
+                if (!d) {
+                  if (element.tagName === 'line') {
+                    const x1 = element.getAttribute('x1') || 0;
+                    const y1 = element.getAttribute('y1') || 0;
+                    const x2 = element.getAttribute('x2') || 0;
+                    const y2 = element.getAttribute('y2') || 0;
+                    d = `M ${x1} ${y1} L ${x2} ${y2}`;
+                  } else if (element.tagName === 'rect') {
+                    const x = parseFloat(element.getAttribute('x') || 0);
+                    const y = parseFloat(element.getAttribute('y') || 0);
+                    const w = parseFloat(element.getAttribute('width') || 0);
+                    const h = parseFloat(element.getAttribute('height') || 0);
+                    d = `M ${x} ${y} L ${x+w} ${y} L ${x+w} ${y+h} L ${x} ${y+h} Z`;
+                  } else if (element.tagName === 'circle') {
+                    const cx = parseFloat(element.getAttribute('cx') || 0);
+                    const cy = parseFloat(element.getAttribute('cy') || 0);
+                    const r = parseFloat(element.getAttribute('r') || 0);
+                    d = `M ${cx-r} ${cy} A ${r} ${r} 0 1 1 ${cx+r} ${cy} A ${r} ${r} 0 1 1 ${cx-r} ${cy}`;
+                  }
+                }
+                
+                if (d) {
+                  extractedPaths.push({
+                    d: d,
+                    length: getPathLength(d)
+                  });
+                }
+              });
+              
+              setPaths(extractedPaths);
+              initializeParticles(extractedPaths);
+            }
+          };
+
+          const getPathLength = (d) => {
+            const tempPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            tempPath.setAttribute('d', d);
+            return tempPath.getTotalLength ? tempPath.getTotalLength() : 1000;
+          };
+
+          const initializeParticles = (pathsList) => {
+            const newParticles = [];
+            pathsList.forEach((path, pathIndex) => {
+              for (let i = 0; i < particleCount; i++) {
+                newParticles.push({
+                  pathIndex,
+                  progress: 0,
+                  speed: 0.3 + Math.random() * 0.7,
+                  color: colors[Math.floor(Math.random() * colors.length)],
+                  delayStart: pathIndex * 0.2 + Math.random() * 0.5,
+                  hasStarted: false
+                });
+              }
+            });
+            setParticles(newParticles);
+            
+            // Initialiser le mode random si activé
+            if (randomMode) {
+              updateActivePaths(pathsList.length);
+            } else {
+              setActivePaths(pathsList.map((_, i) => i)); // Tous actifs
+            }
+          };
+
+          // Gérer les paths actifs en mode random
+          const updateActivePaths = (totalPaths) => {
+            const numActive = Math.max(1, Math.floor(totalPaths * activePathsPercent / 100));
+            const available = Array.from({ length: totalPaths }, (_, i) => i);
+            const selected = [];
+            
+            for (let i = 0; i < numActive; i++) {
+              const idx = Math.floor(Math.random() * available.length);
+              selected.push(available[idx]);
+              available.splice(idx, 1);
+            }
+            
+            setActivePaths(selected);
+            setPathCompletions({});
+          };
+
+          useEffect(() => {
+            if (!isPlaying || paths.length === 0) return;
+
+            const canvas = canvasRef.current;
+            if (!canvas) return;
+
+            const ctx = canvas.getContext('2d');
+            const tempSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            document.body.appendChild(tempSvg);
+            
+            if (!animationStartTime) {
+              setAnimationStartTime(Date.now());
+            }
+            const startTime = animationStartTime || Date.now();
+
+            const animate = () => {
+              const currentTime = Date.now();
+              const elapsedSeconds = (currentTime - startTime) / 1000;
+
+              ctx.fillStyle = '#000000';
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+              // Dessiner l'image de fond si présente et activée
+              if (backgroundImage && showBackground && backgroundImageRef.current) {
+                ctx.globalAlpha = 0.5;
+                ctx.drawImage(backgroundImageRef.current, 0, 0, canvas.width, canvas.height);
+                ctx.globalAlpha = 1.0;
+              }
+
+              // Router vers l'effet approprié
+              if (currentEffect === 'strokeFlow') {
+                renderStrokeFlow(ctx, tempSvg, elapsedSeconds);
+              } else if (currentEffect === 'wave') {
+                renderWave(ctx, tempSvg, elapsedSeconds);
+              } else if (currentEffect === 'pulse') {
+                renderPulse(ctx, tempSvg, elapsedSeconds);
+              } else if (currentEffect === 'radialBurst') {
+                renderRadialBurst(ctx, tempSvg, elapsedSeconds);
+              } else if (currentEffect === 'scan') {
+                renderScan(ctx, tempSvg, elapsedSeconds);
+              } else if (currentEffect === 'lightning') {
+                renderLightning(ctx, tempSvg, elapsedSeconds);
+              } else if (currentEffect === 'snowfall') {
+                renderSnowfall(ctx, tempSvg, elapsedSeconds);
+              } else if (currentEffect === 'alignment') {
+                // Mode calage : afficher tous les paths en stroke simple
+                paths.forEach((path, pathIndex) => {
+                  const pathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                  pathElement.setAttribute('d', path.d);
+                  tempSvg.appendChild(pathElement);
+
+                  const totalLength = pathElement.getTotalLength();
+                  const color = colors[pathIndex % colors.length];
+
+                  ctx.strokeStyle = color;
+                  ctx.globalAlpha = 0.8;
+                  ctx.lineWidth = 2;
+                  ctx.lineCap = 'round';
+                  ctx.beginPath();
+
+                  for (let i = 0; i <= totalLength; i += 3) {
+                    const point = transformPoint(pathElement.getPointAtLength(Math.min(i, totalLength)));
+                    if (i === 0) {
+                      ctx.moveTo(point.x, point.y);
+                    } else {
+                      ctx.lineTo(point.x, point.y);
+                    }
+                  }
+                  ctx.stroke();
+                  ctx.globalAlpha = 1.0;
+                  
+                  tempSvg.removeChild(pathElement);
+                });
+              }
+
+              animationRef.current = requestAnimationFrame(animate);
+            };
+
+            // ===== EFFET: STROKE FLOW =====
+            const renderStrokeFlow = (ctx, tempSvg, elapsedSeconds) => {
+              particles.forEach((particle) => {
+                const path = paths[particle.pathIndex];
+                if (!path) return;
+
+                // En mode random, vérifier si ce path est actif
+                if (randomMode && !activePaths.includes(particle.pathIndex)) {
+                  return; // Skip ce path
+                }
+
+                if (!particle.hasStarted) {
+                  if (elapsedSeconds >= particle.delayStart) {
+                    particle.hasStarted = true;
+                  } else {
+                    return;
+                  }
+                }
+
+                const pathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathElement.setAttribute('d', path.d);
+                tempSvg.appendChild(pathElement);
+
+                const totalLength = pathElement.getTotalLength();
+                
+                const startPos = (particle.progress * totalLength) % totalLength;
+                const endPos = Math.min(startPos + segmentLength, totalLength);
+
+                const transformPoint = (point) => ({
+                  x: (point.x - svgViewBox.x) * scale + offset.x,
+                  y: (point.y - svgViewBox.y) * scale + offset.y
+                });
+
+                const segmentLengthPx = endPos - startPos;
+                
+                if (glowIntensity > 0) {
+                  for (let g = glowIntensity; g > 0; g -= 3) {
+                    ctx.strokeStyle = particle.color;
+                    ctx.globalAlpha = 0.1;
+                    ctx.lineWidth = 3 + g;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+
+                    const startPoint = transformPoint(pathElement.getPointAtLength(startPos));
+                    ctx.moveTo(startPoint.x, startPoint.y);
+
+                    for (let i = startPos; i <= endPos; i += 2) {
+                      const point = transformPoint(pathElement.getPointAtLength(Math.min(i, totalLength)));
+                      ctx.lineTo(point.x, point.y);
+                    }
+                    ctx.stroke();
+                  }
+                }
+
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+                
+                const numSteps = Math.ceil(segmentLengthPx / 2);
+                for (let i = 0; i < numSteps; i++) {
+                  const currentPos = startPos + (i * 2);
+                  const nextPos = Math.min(currentPos + 2, endPos);
+                  
+                  if (currentPos >= totalLength) break;
+                  
+                  const progress = i / numSteps;
+                  let alpha = 1.0;
+                  
+                  if (fadeIntensity > 0) {
+                    if (progress < fadeIntensity) {
+                      alpha = progress / fadeIntensity;
+                    }
+                    else if (progress > (1 - fadeIntensity)) {
+                      alpha = (1 - progress) / fadeIntensity;
+                    }
+                  }
+                  
+                  ctx.globalAlpha = alpha;
+                  ctx.strokeStyle = particle.color;
+                  ctx.beginPath();
+                  
+                  const point1 = transformPoint(pathElement.getPointAtLength(currentPos));
+                  const point2 = transformPoint(pathElement.getPointAtLength(Math.min(nextPos, totalLength)));
+                  
+                  ctx.moveTo(point1.x, point1.y);
+                  ctx.lineTo(point2.x, point2.y);
+                  ctx.stroke();
+                }
+                
+                ctx.globalAlpha = 1.0;
+
+                tempSvg.removeChild(pathElement);
+
+                // Mettre à jour la progression
+                const oldProgress = particle.progress;
+                particle.progress += (particle.speed * speed * 0.001);
+                
+                // En mode random, détecter la fin du path (avec une seule détection par cycle)
+                if (randomMode) {
+                  if (oldProgress < 1 && particle.progress >= 1) {
+                    particle.progress = 0;
+                    particle.hasStarted = false; // Reset pour le prochain cycle
+                    
+                    // Trouver un nouveau path random différent
+                    const availablePaths = Array.from({ length: paths.length }, (_, i) => i)
+                      .filter(i => !activePaths.includes(i) || i === particle.pathIndex);
+                    
+                    if (availablePaths.length > 0) {
+                      const newPathIndex = availablePaths[Math.floor(Math.random() * availablePaths.length)];
+                      
+                      // Mettre à jour activePaths : remplacer l'ancien par le nouveau
+                      setActivePaths(prev => {
+                        const updated = [...prev];
+                        const idx = updated.indexOf(particle.pathIndex);
+                        if (idx !== -1) {
+                          updated[idx] = newPathIndex;
+                        }
+                        return updated;
+                      });
+                      
+                      // Mettre à jour la particule
+                      particle.pathIndex = newPathIndex;
+                      particle.color = colors[Math.floor(Math.random() * colors.length)];
+                      particle.delayStart = elapsedSeconds + Math.random() * 0.3; // Petit délai
+                    }
+                  }
+                } else if (particle.progress >= 1) {
+                  particle.progress = 0;
+                }
+              });
+            };
+
+            // ===== EFFET: PULSE =====
+            const renderPulse = (ctx, tempSvg, elapsedSeconds) => {
+              // Calcul de l'intensité du pulse basé sur les BPM
+              const beatDuration = 60 / pulseBPM; // durée d'un battement en secondes
+              const beatProgress = (elapsedSeconds % beatDuration) / beatDuration;
+              
+              // Courbe sinusoïdale pour un pulse naturel
+              const intensity = pulseMinIntensity + 
+                (pulseMaxIntensity - pulseMinIntensity) * 
+                (Math.sin(beatProgress * Math.PI * 2) * 0.5 + 0.5);
+
+              paths.forEach((path, pathIndex) => {
+                const pathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathElement.setAttribute('d', path.d);
+                tempSvg.appendChild(pathElement);
+
+                const totalLength = pathElement.getTotalLength();
+                const color = colors[pathIndex % colors.length];
+                const isClosed = path.d.match(/[Zz]\s*$/);
+
+                if (intensity > 0.05) {
+                  // Glow pulsant
+                  if (glowIntensity > 0 && renderMode === 'stroke') {
+                    for (let g = glowIntensity * intensity; g > 0; g -= 3) {
+                      ctx.strokeStyle = color;
+                      ctx.globalAlpha = 0.15 * intensity;
+                      ctx.lineWidth = 3 + g;
+                      ctx.lineCap = 'round';
+                      ctx.beginPath();
+
+                      for (let i = 0; i <= totalLength; i += 5) {
+                        const point = transformPoint(pathElement.getPointAtLength(Math.min(i, totalLength)));
+                        if (i === 0) {
+                          ctx.moveTo(point.x, point.y);
+                        } else {
+                          ctx.lineTo(point.x, point.y);
+                        }
+                      }
+                      ctx.stroke();
+                    }
+                  }
+
+                  if (renderMode === 'stroke') {
+                    ctx.strokeStyle = color;
+                    ctx.globalAlpha = intensity;
+                    ctx.lineWidth = 3;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+
+                    for (let i = 0; i <= totalLength; i += 2) {
+                      const point = transformPoint(pathElement.getPointAtLength(Math.min(i, totalLength)));
+                      if (i === 0) {
+                        ctx.moveTo(point.x, point.y);
+                      } else {
+                        ctx.lineTo(point.x, point.y);
+                      }
+                    }
+                    ctx.stroke();
+                  } else if (isClosed) {
+                    ctx.fillStyle = color;
+                    ctx.globalAlpha = intensity * 0.6;
+                    
+                    const path2D = new Path2D();
+                    for (let i = 0; i <= totalLength; i += 5) {
+                      const point = transformPoint(pathElement.getPointAtLength(Math.min(i, totalLength)));
+                      if (i === 0) {
+                        path2D.moveTo(point.x, point.y);
+                      } else {
+                        path2D.lineTo(point.x, point.y);
+                      }
+                    }
+                    path2D.closePath();
+                    ctx.fill(path2D);
+                  }
+                  
+                  ctx.globalAlpha = 1.0;
+                }
+
+                tempSvg.removeChild(pathElement);
+              });
+            };
+
+            // ===== EFFET: SNOWFALL =====
+            const renderSnowfall = (ctx, tempSvg, elapsedSeconds) => {
+              const deltaTime = 1 / 60; // Approximation 60fps
+              
+              // Émettre de nouveaux flocons
+              if (Math.random() < snowEmissionRate / 100) {
+                const newSnowflake = {
+                  x: Math.random() * resolution.width,
+                  y: -10,
+                  vx: (Math.random() - 0.5) * snowWind,
+                  vy: 0,
+                  size: snowInitialSize * (0.7 + Math.random() * 0.6), // Variation de taille
+                  rotation: Math.random() * Math.PI * 2,
+                  rotationSpeed: (Math.random() - 0.5) * 2,
+                  settled: false,
+                  settledTime: 0,
+                  opacity: 1
+                };
+                
+                // Utiliser setSnowflakes mais aussi stocker localement
+                snowflakes.push(newSnowflake);
+              }
+              
+              // Construire les lignes de collision depuis les paths
+              const collisionLines = [];
+              paths.forEach((path, pathIndex) => {
+                // Vérifier si ce path est actif pour les collisions
+                if (!snowActivePaths.includes(pathIndex)) {
+                  return; // Skip ce path
+                }
+
+                const pathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathElement.setAttribute('d', path.d);
+                tempSvg.appendChild(pathElement);
+                
+                const totalLength = pathElement.getTotalLength();
+                const segments = Math.ceil(totalLength / 10);
+                
+                for (let i = 0; i < segments; i++) {
+                  const pos1 = transformPoint(pathElement.getPointAtLength((i / segments) * totalLength));
+                  const pos2 = transformPoint(pathElement.getPointAtLength(((i + 1) / segments) * totalLength));
+                  collisionLines.push({ x1: pos1.x, y1: pos1.y, x2: pos2.x, y2: pos2.y });
+                }
+                
+                tempSvg.removeChild(pathElement);
+              });
+              
+              // Mettre à jour les flocons
+              const updatedSnowflakes = snowflakes.map(flake => {
+                if (flake.settled) {
+                  // Flocon posé : diminuer la taille
+                  flake.settledTime += deltaTime;
+                  const meltProgress = flake.settledTime * snowMeltSpeed;
+                  flake.size = Math.max(0, snowInitialSize * (1 - meltProgress));
+                  flake.opacity = Math.max(0, 1 - meltProgress);
+                  return flake;
+                }
+                
+                // Physique : gravité et vent
+                flake.vy += snowGravity * deltaTime;
+                flake.x += flake.vx * deltaTime;
+                flake.y += flake.vy * deltaTime;
+                flake.rotation += flake.rotationSpeed * deltaTime;
+                
+                // Vérifier collision avec les lignes
+                for (const line of collisionLines) {
+                  if (checkLineCircleCollision(
+                    line.x1, line.y1, line.x2, line.y2,
+                    flake.x, flake.y, flake.size / 2
+                  )) {
+                    flake.settled = true;
+                    flake.vy = 0;
+                    flake.vx = 0;
+                    break;
+                  }
+                }
+                
+                // Supprimer si hors écran
+                if (flake.y > resolution.height + 50 || flake.x < -50 || flake.x > resolution.width + 50) {
+                  return null;
+                }
+                
+                return flake;
+              }).filter(f => f !== null && f.size > 0.1);
+              
+              // Mettre à jour l'état React avec les flocons mis à jour
+              if (updatedSnowflakes.length !== snowflakes.length || updatedSnowflakes.some((f, i) => f !== snowflakes[i])) {
+                setSnowflakes(updatedSnowflakes);
+              }
+              
+              // Dessiner les strokes si activé
+              if (showStrokesForCollision) {
+                paths.forEach((path, pathIndex) => {
+                  // Vérifier si ce path est actif
+                  if (!snowActivePaths.includes(pathIndex)) {
+                    return; // Skip ce path
+                  }
+
+                  const pathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                  pathElement.setAttribute('d', path.d);
+                  tempSvg.appendChild(pathElement);
+
+                  const totalLength = pathElement.getTotalLength();
+                  const color = colors[pathIndex % colors.length];
+
+                  ctx.strokeStyle = color;
+                  ctx.globalAlpha = 0.5;
+                  ctx.lineWidth = 2;
+                  ctx.lineCap = 'round';
+                  ctx.beginPath();
+
+                  for (let i = 0; i <= totalLength; i += 5) {
+                    const point = transformPoint(pathElement.getPointAtLength(Math.min(i, totalLength)));
+                    if (i === 0) {
+                      ctx.moveTo(point.x, point.y);
+                    } else {
+                      ctx.lineTo(point.x, point.y);
+                    }
+                  }
+                  ctx.stroke();
+                  ctx.globalAlpha = 1.0;
+                  
+                  tempSvg.removeChild(pathElement);
+                });
+              }
+              
+              // Dessiner les flocons
+              snowflakes.forEach(flake => {
+                ctx.save();
+                ctx.translate(flake.x, flake.y);
+                ctx.rotate(flake.rotation);
+                ctx.globalAlpha = flake.opacity;
+                
+                // Dessiner un flocon de neige stylisé
+                ctx.fillStyle = '#FFFFFF';
+                ctx.strokeStyle = '#FFFFFF';
+                ctx.lineWidth = 1;
+                
+                const branches = 6;
+                for (let i = 0; i < branches; i++) {
+                  const angle = (i / branches) * Math.PI * 2;
+                  ctx.beginPath();
+                  ctx.moveTo(0, 0);
+                  ctx.lineTo(
+                    Math.cos(angle) * flake.size,
+                    Math.sin(angle) * flake.size
+                  );
+                  ctx.stroke();
+                  
+                  // Petites branches
+                  for (let j = 0.3; j <= 0.7; j += 0.4) {
+                    const subSize = flake.size * 0.3;
+                    const px = Math.cos(angle) * flake.size * j;
+                    const py = Math.sin(angle) * flake.size * j;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(px, py);
+                    ctx.lineTo(
+                      px + Math.cos(angle + Math.PI / 4) * subSize,
+                      py + Math.sin(angle + Math.PI / 4) * subSize
+                    );
+                    ctx.stroke();
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(px, py);
+                    ctx.lineTo(
+                      px + Math.cos(angle - Math.PI / 4) * subSize,
+                      py + Math.sin(angle - Math.PI / 4) * subSize
+                    );
+                    ctx.stroke();
+                  }
+                }
+                
+                // Centre du flocon
+                ctx.beginPath();
+                ctx.arc(0, 0, flake.size * 0.2, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.restore();
+              });
+            };
+
+            // Fonction helper pour détecter collision ligne-cercle
+            const checkLineCircleCollision = (x1, y1, x2, y2, cx, cy, radius) => {
+              const dx = x2 - x1;
+              const dy = y2 - y1;
+              const len = Math.sqrt(dx * dx + dy * dy);
+              
+              if (len === 0) return false;
+              
+              const dot = ((cx - x1) * dx + (cy - y1) * dy) / (len * len);
+              const closestX = x1 + dot * dx;
+              const closestY = y1 + dot * dy;
+              
+              // Vérifier si le point le plus proche est sur le segment
+              if (dot < 0 || dot > 1) {
+                // Vérifier distance aux extrémités
+                const d1 = Math.sqrt((cx - x1) ** 2 + (cy - y1) ** 2);
+                const d2 = Math.sqrt((cx - x2) ** 2 + (cy - y2) ** 2);
+                return Math.min(d1, d2) < radius;
+              }
+              
+              const distance = Math.sqrt((cx - closestX) ** 2 + (cy - closestY) ** 2);
+              return distance < radius;
+            };
+
+            // ===== EFFET: LIGHTNING =====
+            const renderLightning = (ctx, tempSvg, elapsedSeconds) => {
+              // Vérifier quels paths doivent éclairer à ce moment
+              const currentSecond = Math.floor(elapsedSeconds * 10) / 10; // Arrondi pour stabilité
+              
+              // Déclencher de nouveaux éclairs selon la fréquence
+              if (Math.random() < lightningFrequency / 100) {
+                // Sélectionner 1 à 3 paths aléatoires pour un éclair
+                const numFlashes = Math.floor(Math.random() * 3) + 1;
+                const newFlashes = [];
+                
+                for (let i = 0; i < numFlashes; i++) {
+                  const randomPath = Math.floor(Math.random() * paths.length);
+                  newFlashes.push({
+                    pathIndex: randomPath,
+                    startTime: elapsedSeconds,
+                    intensity: 0.8 + Math.random() * 0.4 // 0.8 à 1.2
+                  });
+                }
+                
+                setLightningPaths(prev => [...prev, ...newFlashes]);
+              }
+              
+              // Nettoyer les vieux éclairs
+              const activeLightning = lightningPaths.filter(
+                flash => elapsedSeconds - flash.startTime < lightningDuration
+              );
+              
+              if (activeLightning.length !== lightningPaths.length) {
+                setLightningPaths(activeLightning);
+              }
+
+              // Dessiner tous les paths avec intensité normale très basse
+              paths.forEach((path, pathIndex) => {
+                const pathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathElement.setAttribute('d', path.d);
+                tempSvg.appendChild(pathElement);
+
+                const totalLength = pathElement.getTotalLength();
+                const color = colors[pathIndex % colors.length];
+                const isClosed = path.d.match(/[Zz]\s*$/);
+                
+                // Vérifier si ce path a un éclair actif
+                const activeFlash = activeLightning.find(f => f.pathIndex === pathIndex);
+                let intensity = 0.05; // Très faible par défaut
+                
+                if (activeFlash) {
+                  const flashProgress = (elapsedSeconds - activeFlash.startTime) / lightningDuration;
+                  // Flash rapide puis fade out
+                  if (flashProgress < 0.1) {
+                    intensity = activeFlash.intensity * lightningIntensity;
+                  } else {
+                    intensity = activeFlash.intensity * lightningIntensity * (1 - (flashProgress - 0.1) / 0.9);
+                  }
+                }
+
+                if (intensity > 0.02) {
+                  // Glow intense pour les éclairs
+                  if (activeFlash && glowIntensity > 0 && renderMode === 'stroke') {
+                    for (let g = glowIntensity * intensity * 2; g > 0; g -= 3) {
+                      ctx.strokeStyle = color;
+                      ctx.globalAlpha = 0.2 * intensity;
+                      ctx.lineWidth = 3 + g;
+                      ctx.lineCap = 'round';
+                      ctx.beginPath();
+
+                      for (let i = 0; i <= totalLength; i += 5) {
+                        const point = transformPoint(pathElement.getPointAtLength(Math.min(i, totalLength)));
+                        if (i === 0) {
+                          ctx.moveTo(point.x, point.y);
+                        } else {
+                          ctx.lineTo(point.x, point.y);
+                        }
+                      }
+                      ctx.stroke();
+                    }
+                  }
+
+                  if (renderMode === 'stroke') {
+                    ctx.strokeStyle = color;
+                    ctx.globalAlpha = Math.min(intensity, 1);
+                    ctx.lineWidth = activeFlash ? 4 : 2;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+
+                    for (let i = 0; i <= totalLength; i += 2) {
+                      const point = transformPoint(pathElement.getPointAtLength(Math.min(i, totalLength)));
+                      if (i === 0) {
+                        ctx.moveTo(point.x, point.y);
+                      } else {
+                        ctx.lineTo(point.x, point.y);
+                      }
+                    }
+                    ctx.stroke();
+                  } else if (isClosed) {
+                    ctx.fillStyle = color;
+                    ctx.globalAlpha = Math.min(intensity * 0.7, 0.7);
+                    
+                    const path2D = new Path2D();
+                    for (let i = 0; i <= totalLength; i += 5) {
+                      const point = transformPoint(pathElement.getPointAtLength(Math.min(i, totalLength)));
+                      if (i === 0) {
+                        path2D.moveTo(point.x, point.y);
+                      } else {
+                        path2D.lineTo(point.x, point.y);
+                      }
+                    }
+                    path2D.closePath();
+                    ctx.fill(path2D);
+                  }
+                  
+                  ctx.globalAlpha = 1.0;
+                }
+
+                tempSvg.removeChild(pathElement);
+              });
+            };
+
+            // ===== EFFET: RADIAL BURST =====
+            const renderRadialBurst = (ctx, tempSvg, elapsedSeconds) => {
+              const originX = (burstOriginX / 100) * resolution.width;
+              const originY = (burstOriginY / 100) * resolution.height;
+              
+              // Cycle de burst (explosion en boucle)
+              const burstCycle = 3; // durée d'un cycle en secondes
+              const cycleProgress = (elapsedSeconds * burstSpeed % burstCycle) / burstCycle;
+
+              paths.forEach((path, pathIndex) => {
+                const pathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathElement.setAttribute('d', path.d);
+                tempSvg.appendChild(pathElement);
+
+                const totalLength = pathElement.getTotalLength();
+                const midPoint = pathElement.getPointAtLength(totalLength / 2);
+                const transformedMid = transformPoint(midPoint);
+                
+                // Calculer la distance du path au point d'origine
+                const dx = transformedMid.x - originX;
+                const dy = transformedMid.y - originY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const maxDistance = Math.sqrt(resolution.width * resolution.width + resolution.height * resolution.height);
+                
+                // Calculer quand ce path doit s'allumer basé sur la distance
+                const normalizedDistance = distance / maxDistance;
+                const pathTiming = normalizedDistance;
+                
+                // Intensité basée sur le timing du burst
+                let intensity = 0;
+                const burstWidth = 0.2; // largeur de la vague d'explosion
+                
+                if (cycleProgress >= pathTiming && cycleProgress < pathTiming + burstWidth) {
+                  const localProgress = (cycleProgress - pathTiming) / burstWidth;
+                  intensity = Math.sin(localProgress * Math.PI); // fade in et fade out
+                }
+
+                if (intensity > 0.1) {
+                  const color = colors[pathIndex % colors.length];
+                  const isClosed = path.d.match(/[Zz]\s*$/);
+
+                  // Glow
+                  if (glowIntensity > 0 && renderMode === 'stroke') {
+                    for (let g = glowIntensity * intensity; g > 0; g -= 3) {
+                      ctx.strokeStyle = color;
+                      ctx.globalAlpha = 0.15 * intensity;
+                      ctx.lineWidth = 3 + g;
+                      ctx.lineCap = 'round';
+                      ctx.beginPath();
+
+                      for (let i = 0; i <= totalLength; i += 5) {
+                        const point = transformPoint(pathElement.getPointAtLength(Math.min(i, totalLength)));
+                        if (i === 0) {
+                          ctx.moveTo(point.x, point.y);
+                        } else {
+                          ctx.lineTo(point.x, point.y);
+                        }
+                      }
+                      ctx.stroke();
+                    }
+                  }
+
+                  if (renderMode === 'stroke') {
+                    ctx.strokeStyle = color;
+                    ctx.globalAlpha = intensity;
+                    ctx.lineWidth = 3;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+
+                    for (let i = 0; i <= totalLength; i += 2) {
+                      const point = transformPoint(pathElement.getPointAtLength(Math.min(i, totalLength)));
+                      if (i === 0) {
+                        ctx.moveTo(point.x, point.y);
+                      } else {
+                        ctx.lineTo(point.x, point.y);
+                      }
+                    }
+                    ctx.stroke();
+                  } else if (isClosed) {
+                    ctx.fillStyle = color;
+                    ctx.globalAlpha = intensity * 0.6;
+                    
+                    const path2D = new Path2D();
+                    for (let i = 0; i <= totalLength; i += 5) {
+                      const point = transformPoint(pathElement.getPointAtLength(Math.min(i, totalLength)));
+                      if (i === 0) {
+                        path2D.moveTo(point.x, point.y);
+                      } else {
+                        path2D.lineTo(point.x, point.y);
+                      }
+                    }
+                    path2D.closePath();
+                    ctx.fill(path2D);
+                  }
+                  
+                  ctx.globalAlpha = 1.0;
+                }
+
+                tempSvg.removeChild(pathElement);
+              });
+            };
+
+            // ===== EFFET: SCAN =====
+            const renderScan = (ctx, tempSvg, elapsedSeconds) => {
+              // Position du scan
+              const scanCycle = 4; // durée d'un cycle complet
+              const cycleProgress = (elapsedSeconds * scanSpeed % scanCycle) / scanCycle;
+              
+              let scanPosition;
+              if (scanDirection === 'leftRight') {
+                scanPosition = cycleProgress * resolution.width;
+              } else if (scanDirection === 'rightLeft') {
+                scanPosition = (1 - cycleProgress) * resolution.width;
+              } else if (scanDirection === 'topBottom') {
+                scanPosition = cycleProgress * resolution.height;
+              } else {
+                scanPosition = (1 - cycleProgress) * resolution.height;
+              }
+
+              paths.forEach((path, pathIndex) => {
+                const pathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathElement.setAttribute('d', path.d);
+                tempSvg.appendChild(pathElement);
+
+                const totalLength = pathElement.getTotalLength();
+                const midPoint = pathElement.getPointAtLength(totalLength / 2);
+                const transformedMid = transformPoint(midPoint);
+                
+                // Calculer la position du path
+                let pathPosition;
+                if (scanDirection === 'leftRight' || scanDirection === 'rightLeft') {
+                  pathPosition = transformedMid.x;
+                } else {
+                  pathPosition = transformedMid.y;
+                }
+                
+                // Calculer l'intensité basée sur la proximité au scan
+                const distance = Math.abs(pathPosition - scanPosition);
+                const intensity = Math.max(0, 1 - (distance / scanThickness));
+
+                if (intensity > 0.05) {
+                  const color = colors[pathIndex % colors.length];
+                  const isClosed = path.d.match(/[Zz]\s*$/);
+
+                  // Glow
+                  if (glowIntensity > 0 && renderMode === 'stroke') {
+                    for (let g = glowIntensity * intensity; g > 0; g -= 3) {
+                      ctx.strokeStyle = color;
+                      ctx.globalAlpha = 0.15 * intensity;
+                      ctx.lineWidth = 3 + g;
+                      ctx.lineCap = 'round';
+                      ctx.beginPath();
+
+                      for (let i = 0; i <= totalLength; i += 5) {
+                        const point = transformPoint(pathElement.getPointAtLength(Math.min(i, totalLength)));
+                        if (i === 0) {
+                          ctx.moveTo(point.x, point.y);
+                        } else {
+                          ctx.lineTo(point.x, point.y);
+                        }
+                      }
+                      ctx.stroke();
+                    }
+                  }
+
+                  if (renderMode === 'stroke') {
+                    ctx.strokeStyle = color;
+                    ctx.globalAlpha = intensity;
+                    ctx.lineWidth = 3;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+
+                    for (let i = 0; i <= totalLength; i += 2) {
+                      const point = transformPoint(pathElement.getPointAtLength(Math.min(i, totalLength)));
+                      if (i === 0) {
+                        ctx.moveTo(point.x, point.y);
+                      } else {
+                        ctx.lineTo(point.x, point.y);
+                      }
+                    }
+                    ctx.stroke();
+                  } else if (isClosed) {
+                    ctx.fillStyle = color;
+                    ctx.globalAlpha = intensity * 0.6;
+                    
+                    const path2D = new Path2D();
+                    for (let i = 0; i <= totalLength; i += 5) {
+                      const point = transformPoint(pathElement.getPointAtLength(Math.min(i, totalLength)));
+                      if (i === 0) {
+                        path2D.moveTo(point.x, point.y);
+                      } else {
+                        path2D.lineTo(point.x, point.y);
+                      }
+                    }
+                    path2D.closePath();
+                    ctx.fill(path2D);
+                  }
+                  
+                  ctx.globalAlpha = 1.0;
+                }
+
+                tempSvg.removeChild(pathElement);
+              });
+            };
+
+            // ===== EFFET: WAVE =====
+            const renderWave = (ctx, tempSvg, elapsedSeconds) => {
+              paths.forEach((path, pathIndex) => {
+                const pathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathElement.setAttribute('d', path.d);
+                tempSvg.appendChild(pathElement);
+
+                const totalLength = pathElement.getTotalLength();
+                
+                // Calculer la position du path pour la vague
+                let pathPosition = 0;
+                if (waveDirection === 'vertical') {
+                  const midPoint = pathElement.getPointAtLength(totalLength / 2);
+                  pathPosition = transformPoint(midPoint).y;
+                } else if (waveDirection === 'horizontal') {
+                  const midPoint = pathElement.getPointAtLength(totalLength / 2);
+                  pathPosition = transformPoint(midPoint).x;
+                }
+
+                // Calculer l'intensité basée sur la vague
+                const wavePhase = (elapsedSeconds * waveSpeed * 2) - (pathPosition / waveAmplitude);
+                const intensity = (Math.sin(wavePhase * waveFrequency) + 1) / 2; // 0 à 1
+
+                if (intensity > 0.1) {
+                  const color = colors[pathIndex % colors.length];
+                  const isClosed = path.d.match(/[Zz]\s*$/);
+                  
+                  // Glow
+                  if (glowIntensity > 0 && renderMode === 'stroke') {
+                    for (let g = glowIntensity * intensity; g > 0; g -= 3) {
+                      ctx.strokeStyle = color;
+                      ctx.globalAlpha = 0.1 * intensity;
+                      ctx.lineWidth = 3 + g;
+                      ctx.lineCap = 'round';
+                      ctx.beginPath();
+
+                      for (let i = 0; i <= totalLength; i += 5) {
+                        const point = transformPoint(pathElement.getPointAtLength(Math.min(i, totalLength)));
+                        if (i === 0) {
+                          ctx.moveTo(point.x, point.y);
+                        } else {
+                          ctx.lineTo(point.x, point.y);
+                        }
+                      }
+                      ctx.stroke();
+                    }
+                  }
+
+                  if (renderMode === 'stroke') {
+                    // Mode Stroke
+                    ctx.strokeStyle = color;
+                    ctx.globalAlpha = intensity;
+                    ctx.lineWidth = 3;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+
+                    for (let i = 0; i <= totalLength; i += 2) {
+                      const point = transformPoint(pathElement.getPointAtLength(Math.min(i, totalLength)));
+                      if (i === 0) {
+                        ctx.moveTo(point.x, point.y);
+                      } else {
+                        ctx.lineTo(point.x, point.y);
+                      }
+                    }
+                    ctx.stroke();
+                  } else {
+                    // Mode Fill
+                    if (isClosed) {
+                      ctx.fillStyle = color;
+                      ctx.globalAlpha = intensity * 0.6;
+                      
+                      const path2D = new Path2D();
+                      for (let i = 0; i <= totalLength; i += 5) {
+                        const point = transformPoint(pathElement.getPointAtLength(Math.min(i, totalLength)));
+                        if (i === 0) {
+                          path2D.moveTo(point.x, point.y);
+                        } else {
+                          path2D.lineTo(point.x, point.y);
+                        }
+                      }
+                      path2D.closePath();
+                      ctx.fill(path2D);
+                    } else {
+                      // Fallback stroke pour paths non fermés
+                      ctx.strokeStyle = color;
+                      ctx.globalAlpha = intensity;
+                      ctx.lineWidth = 3;
+                      ctx.beginPath();
+                      for (let i = 0; i <= totalLength; i += 2) {
+                        const point = transformPoint(pathElement.getPointAtLength(Math.min(i, totalLength)));
+                        if (i === 0) {
+                          ctx.moveTo(point.x, point.y);
+                        } else {
+                          ctx.lineTo(point.x, point.y);
+                        }
+                      }
+                      ctx.stroke();
+                    }
+                  }
+                  
+                  ctx.globalAlpha = 1.0;
+                }
+
+                tempSvg.removeChild(pathElement);
+              });
+            };
+
+            const transformPoint = (point) => ({
+              x: (point.x - svgViewBox.x) * scale + offset.x,
+              y: (point.y - svgViewBox.y) * scale + offset.y
+            });
+
+            animate();
+
+            return () => {
+              if (animationRef.current) {
+                cancelAnimationFrame(animationRef.current);
+              }
+              document.body.removeChild(tempSvg);
+            };
+          }, [isPlaying, paths, particles, segmentLength, speed, glowIntensity, fadeIntensity, scale, offset, svgViewBox, animationStartTime, currentEffect, waveAmplitude, waveFrequency, waveSpeed, waveDirection, colors, activePaths, randomMode, renderMode, pulseBPM, pulseMinIntensity, pulseMaxIntensity, burstOriginX, burstOriginY, burstSpeed, scanSpeed, scanDirection, scanThickness, resolution, lightningFrequency, lightningIntensity, lightningDuration, lightningPaths, snowflakes, snowEmissionRate, snowGravity, snowWind, snowInitialSize, snowMeltSpeed, showStrokesForCollision, snowActivePaths, backgroundImage, showBackground]);
+
+          useEffect(() => {
+            if (paths.length > 0) {
+              initializeParticles(paths);
+            }
+          }, [particleCount, colors, randomMode, activePathsPercent]);
+
+          // Initialiser les paths actifs pour Snowfall
+          useEffect(() => {
+            if (paths.length > 0 && currentEffect === 'snowfall') {
+              updateSnowActivePaths(paths.length);
+            }
+          }, [paths, currentEffect, snowActivePathsPercent]);
+
+          const updateSnowActivePaths = (totalPaths) => {
+            const numActive = Math.max(1, Math.floor(totalPaths * snowActivePathsPercent / 100));
+            const available = Array.from({ length: totalPaths }, (_, i) => i);
+            const selected = [];
+            
+            for (let i = 0; i < numActive; i++) {
+              const idx = Math.floor(Math.random() * available.length);
+              selected.push(available[idx]);
+              available.splice(idx, 1);
+            }
+            
+            setSnowActivePaths(selected);
+          };
+
+          // Mettre à jour scale et offset manuellement
+          useEffect(() => {
+            if (paths.length > 0 && svgViewBox) {
+              const scaledWidth = svgViewBox.width * svgScale;
+              const scaledHeight = svgViewBox.height * svgScale;
+              
+              setScale(svgScale);
+              setOffset({
+                x: svgOffsetX,
+                y: svgOffsetY
+              });
+            }
+          }, [svgScale, svgOffsetX, svgOffsetY]);
+          useEffect(() => {
+            if (randomMode && paths.length > 0) {
+              updateActivePaths(paths.length);
+            } else if (!randomMode && paths.length > 0) {
+              setActivePaths(paths.map((_, i) => i));
+            }
+          }, [randomMode, activePathsPercent]);
+
+          useEffect(() => {
+            if (!isPlaying) {
+              setAnimationStartTime(null);
+            }
+          }, [isPlaying]);
+
+          const startRecording = () => {
+            const canvas = canvasRef.current;
+            if (!canvas) return;
+
+            recordedChunksRef.current = [];
+            
+            const stream = canvas.captureStream(30);
+            const mediaRecorder = new MediaRecorder(stream, {
+              mimeType: 'video/webm;codecs=vp9',
+              videoBitsPerSecond: 8000000
+            });
+
+            mediaRecorder.ondataavailable = (event) => {
+              if (event.data.size > 0) {
+                recordedChunksRef.current.push(event.data);
+              }
+            };
+
+            mediaRecorder.onstop = () => {
+              const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `projection_mapping_${Date.now()}.webm`;
+              a.click();
+              URL.revokeObjectURL(url);
+              setIsRecording(false);
+            };
+
+            mediaRecorder.start();
+            mediaRecorderRef.current = mediaRecorder;
+            setIsRecording(true);
+            
+            if (!isPlaying) {
+              setIsPlaying(true);
+            }
+          };
+
+          const stopRecording = () => {
+            if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+              mediaRecorderRef.current.stop();
+            }
+          };
+
+          // ===== RENDER OFFLINE =====
+          const startOfflineRender = async () => {
+            if (paths.length === 0) {
+              alert('Veuillez d\'abord importer un SVG');
+              return;
+            }
+
+            setIsRenderingOffline(true);
+            setRenderProgress(0);
+
+            // Calculer la durée en fonction des cycles pour certains effets
+            let actualDuration = renderDuration;
+            if (['pulse', 'wave', 'radialBurst'].includes(currentEffect)) {
+              if (currentEffect === 'pulse') {
+                actualDuration = (60 / pulseBPM) * renderCycles;
+              } else if (currentEffect === 'wave') {
+                actualDuration = renderCycles * 4; // 4s par cycle de vague
+              } else if (currentEffect === 'radialBurst') {
+                actualDuration = renderCycles * 3; // 3s par cycle de burst
+              }
+            }
+
+            const totalFrames = Math.floor(actualDuration * renderFPS);
+            const frames = [];
+
+            // Créer un canvas offline
+            const offlineCanvas = document.createElement('canvas');
+            offlineCanvas.width = resolution.width;
+            offlineCanvas.height = resolution.height;
+            const offlineCtx = offlineCanvas.getContext('2d');
+
+            const tempSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            document.body.appendChild(tempSvg);
+
+            // Générer chaque frame
+            for (let frameIndex = 0; frameIndex < totalFrames; frameIndex++) {
+              const elapsedSeconds = frameIndex / renderFPS;
+
+              // Clear
+              offlineCtx.fillStyle = '#000000';
+              offlineCtx.fillRect(0, 0, offlineCanvas.width, offlineCanvas.height);
+
+              // Background si activé
+              if (backgroundImage && showBackground && backgroundImageRef.current) {
+                offlineCtx.globalAlpha = 0.5;
+                offlineCtx.drawImage(backgroundImageRef.current, 0, 0, offlineCanvas.width, offlineCanvas.height);
+                offlineCtx.globalAlpha = 1.0;
+              }
+
+              // Render l'effet selon le type
+              await renderFrameOffline(offlineCtx, tempSvg, elapsedSeconds, frameIndex);
+
+              // Capturer la frame
+              const frameData = offlineCanvas.toDataURL('image/png');
+              frames.push(frameData);
+
+              // Update progress
+              setRenderProgress(Math.floor((frameIndex + 1) / totalFrames * 100));
+
+              // Petit délai pour laisser le navigateur respirer
+              if (frameIndex % 10 === 0) {
+                await new Promise(resolve => setTimeout(resolve, 0));
+              }
+            }
+
+            document.body.removeChild(tempSvg);
+
+            // Export selon le format
+            if (renderFormat === 'png') {
+              await exportFramesAsZip(frames);
+            } else {
+              await exportFramesAsWebM(frames, renderFPS);
+            }
+
+            setIsRenderingOffline(false);
+            setRenderProgress(0);
+          };
+
+          const renderFrameOffline = async (ctx, tempSvg, elapsedSeconds, frameIndex) => {
+            // Utiliser renderEffectType au lieu de currentEffect
+            const effectToRender = renderEffectType;
+            
+            // Fonction helper pour transformer les coordonnées
+            const transformPoint = (point) => ({
+              x: (point.x - svgViewBox.x) * scale + offset.x,
+              y: (point.y - svgViewBox.y) * scale + offset.y
+            });
+
+            // Simuler les particules pour Stroke Flow
+            if (effectToRender === 'strokeFlow') {
+              const simulatedParticles = [];
+              paths.forEach((path, pathIndex) => {
+                if (randomMode && !activePaths.includes(pathIndex)) return;
+                
+                for (let i = 0; i < particleCount; i++) {
+                  const delayStart = pathIndex * 0.2 + (i * 0.1);
+                  if (elapsedSeconds >= delayStart) {
+                    simulatedParticles.push({
+                      pathIndex,
+                      progress: ((elapsedSeconds - delayStart) * speed * 0.3) % 1,
+                      color: colors[pathIndex % colors.length]
+                    });
+                  }
+                }
+              });
+
+              // Dessiner les particules
+              simulatedParticles.forEach(particle => {
+                const path = paths[particle.pathIndex];
+                if (!path) return;
+
+                const pathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathElement.setAttribute('d', path.d);
+                tempSvg.appendChild(pathElement);
+
+                const totalLength = pathElement.getTotalLength();
+                const startPos = (particle.progress * totalLength) % totalLength;
+                const endPos = Math.min(startPos + segmentLength, totalLength);
+
+                // Glow
+                if (glowIntensity > 0) {
+                  for (let g = glowIntensity; g > 0; g -= 3) {
+                    ctx.strokeStyle = particle.color;
+                    ctx.globalAlpha = 0.1;
+                    ctx.lineWidth = 3 + g;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+
+                    const startPoint = transformPoint(pathElement.getPointAtLength(startPos));
+                    ctx.moveTo(startPoint.x, startPoint.y);
+
+                    for (let i = startPos; i <= endPos; i += 2) {
+                      const point = transformPoint(pathElement.getPointAtLength(Math.min(i, totalLength)));
+                      ctx.lineTo(point.x, point.y);
+                    }
+                    ctx.stroke();
+                  }
+                }
+
+                // Segment avec fade
+                const segmentLengthPx = endPos - startPos;
+                const numSteps = Math.ceil(segmentLengthPx / 2);
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+
+                for (let i = 0; i < numSteps; i++) {
+                  const currentPos = startPos + (i * 2);
+                  const nextPos = Math.min(currentPos + 2, endPos);
+                  if (currentPos >= totalLength) break;
+
+                  const progress = i / numSteps;
+                  let alpha = 1.0;
+
+                  if (fadeIntensity > 0) {
+                    if (progress < fadeIntensity) {
+                      alpha = progress / fadeIntensity;
+                    } else if (progress > (1 - fadeIntensity)) {
+                      alpha = (1 - progress) / fadeIntensity;
+                    }
+                  }
+
+                  ctx.globalAlpha = alpha;
+                  ctx.strokeStyle = particle.color;
+                  ctx.beginPath();
+
+                  const point1 = transformPoint(pathElement.getPointAtLength(currentPos));
+                  const point2 = transformPoint(pathElement.getPointAtLength(Math.min(nextPos, totalLength)));
+
+                  ctx.moveTo(point1.x, point1.y);
+                  ctx.lineTo(point2.x, point2.y);
+                  ctx.stroke();
+                }
+
+                ctx.globalAlpha = 1.0;
+                tempSvg.removeChild(pathElement);
+              });
+            }
+            // Wave, Pulse, etc.
+            else if (effectToRender === 'wave') {
+              paths.forEach((path, pathIndex) => {
+                const pathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathElement.setAttribute('d', path.d);
+                tempSvg.appendChild(pathElement);
+
+                const totalLength = pathElement.getTotalLength();
+                let pathPosition = 0;
+                
+                if (waveDirection === 'vertical') {
+                  const midPoint = pathElement.getPointAtLength(totalLength / 2);
+                  pathPosition = transformPoint(midPoint).y;
+                } else {
+                  const midPoint = pathElement.getPointAtLength(totalLength / 2);
+                  pathPosition = transformPoint(midPoint).x;
+                }
+
+                const wavePhase = (elapsedSeconds * waveSpeed * 2) - (pathPosition / waveAmplitude);
+                const intensity = (Math.sin(wavePhase * waveFrequency) + 1) / 2;
+
+                if (intensity > 0.1) {
+                  const color = colors[pathIndex % colors.length];
+                  
+                  // Glow
+                  if (glowIntensity > 0) {
+                    for (let g = glowIntensity * intensity; g > 0; g -= 3) {
+                      ctx.strokeStyle = color;
+                      ctx.globalAlpha = 0.1 * intensity;
+                      ctx.lineWidth = 3 + g;
+                      ctx.lineCap = 'round';
+                      ctx.beginPath();
+
+                      for (let i = 0; i <= totalLength; i += 5) {
+                        const point = transformPoint(pathElement.getPointAtLength(Math.min(i, totalLength)));
+                        if (i === 0) ctx.moveTo(point.x, point.y);
+                        else ctx.lineTo(point.x, point.y);
+                      }
+                      ctx.stroke();
+                    }
+                  }
+
+                  ctx.strokeStyle = color;
+                  ctx.globalAlpha = intensity;
+                  ctx.lineWidth = 3;
+                  ctx.lineCap = 'round';
+                  ctx.beginPath();
+
+                  for (let i = 0; i <= totalLength; i += 2) {
+                    const point = transformPoint(pathElement.getPointAtLength(Math.min(i, totalLength)));
+                    if (i === 0) ctx.moveTo(point.x, point.y);
+                    else ctx.lineTo(point.x, point.y);
+                  }
+                  ctx.stroke();
+                  ctx.globalAlpha = 1.0;
+                }
+
+                tempSvg.removeChild(pathElement);
+              });
+            }
+            // Pulse
+            else if (effectToRender === 'pulse') {
+              const beatDuration = 60 / pulseBPM;
+              const beatProgress = (elapsedSeconds % beatDuration) / beatDuration;
+              const intensity = pulseMinIntensity + 
+                (pulseMaxIntensity - pulseMinIntensity) * 
+                (Math.sin(beatProgress * Math.PI * 2) * 0.5 + 0.5);
+
+              paths.forEach((path, pathIndex) => {
+                const pathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathElement.setAttribute('d', path.d);
+                tempSvg.appendChild(pathElement);
+
+                const totalLength = pathElement.getTotalLength();
+                const color = colors[pathIndex % colors.length];
+
+                if (intensity > 0.05) {
+                  if (glowIntensity > 0) {
+                    for (let g = glowIntensity * intensity; g > 0; g -= 3) {
+                      ctx.strokeStyle = color;
+                      ctx.globalAlpha = 0.15 * intensity;
+                      ctx.lineWidth = 3 + g;
+                      ctx.lineCap = 'round';
+                      ctx.beginPath();
+                      for (let i = 0; i <= totalLength; i += 5) {
+                        const point = transformPoint(pathElement.getPointAtLength(Math.min(i, totalLength)));
+                        if (i === 0) ctx.moveTo(point.x, point.y);
+                        else ctx.lineTo(point.x, point.y);
+                      }
+                      ctx.stroke();
+                    }
+                  }
+
+                  ctx.strokeStyle = color;
+                  ctx.globalAlpha = intensity;
+                  ctx.lineWidth = 3;
+                  ctx.lineCap = 'round';
+                  ctx.beginPath();
+                  for (let i = 0; i <= totalLength; i += 2) {
+                    const point = transformPoint(pathElement.getPointAtLength(Math.min(i, totalLength)));
+                    if (i === 0) ctx.moveTo(point.x, point.y);
+                    else ctx.lineTo(point.x, point.y);
+                  }
+                  ctx.stroke();
+                  ctx.globalAlpha = 1.0;
+                }
+
+                tempSvg.removeChild(pathElement);
+              });
+            }
+            // Radial Burst
+            else if (effectToRender === 'radialBurst') {
+              const originX = (burstOriginX / 100) * resolution.width;
+              const originY = (burstOriginY / 100) * resolution.height;
+              const burstCycle = 3;
+              const cycleProgress = (elapsedSeconds * burstSpeed % burstCycle) / burstCycle;
+
+              paths.forEach((path, pathIndex) => {
+                const pathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathElement.setAttribute('d', path.d);
+                tempSvg.appendChild(pathElement);
+
+                const totalLength = pathElement.getTotalLength();
+                const midPoint = pathElement.getPointAtLength(totalLength / 2);
+                const transformedMid = transformPoint(midPoint);
+                
+                const dx = transformedMid.x - originX;
+                const dy = transformedMid.y - originY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const maxDistance = Math.sqrt(resolution.width * resolution.width + resolution.height * resolution.height);
+                const normalizedDistance = distance / maxDistance;
+                const pathTiming = normalizedDistance;
+                
+                let intensity = 0;
+                const burstWidth = 0.2;
+                
+                if (cycleProgress >= pathTiming && cycleProgress < pathTiming + burstWidth) {
+                  const localProgress = (cycleProgress - pathTiming) / burstWidth;
+                  intensity = Math.sin(localProgress * Math.PI);
+                }
+
+                if (intensity > 0.1) {
+                  const color = colors[pathIndex % colors.length];
+
+                  if (glowIntensity > 0) {
+                    for (let g = glowIntensity * intensity; g > 0; g -= 3) {
+                      ctx.strokeStyle = color;
+                      ctx.globalAlpha = 0.15 * intensity;
+                      ctx.lineWidth = 3 + g;
+                      ctx.lineCap = 'round';
+                      ctx.beginPath();
+                      for (let i = 0; i <= totalLength; i += 5) {
+                        const point = transformPoint(pathElement.getPointAtLength(Math.min(i, totalLength)));
+                        if (i === 0) ctx.moveTo(point.x, point.y);
+                        else ctx.lineTo(point.x, point.y);
+                      }
+                      ctx.stroke();
+                    }
+                  }
+
+                  ctx.strokeStyle = color;
+                  ctx.globalAlpha = intensity;
+                  ctx.lineWidth = 3;
+                  ctx.lineCap = 'round';
+                  ctx.beginPath();
+                  for (let i = 0; i <= totalLength; i += 2) {
+                    const point = transformPoint(pathElement.getPointAtLength(Math.min(i, totalLength)));
+                    if (i === 0) ctx.moveTo(point.x, point.y);
+                    else ctx.lineTo(point.x, point.y);
+                  }
+                  ctx.stroke();
+                  ctx.globalAlpha = 1.0;
+                }
+
+                tempSvg.removeChild(pathElement);
+              });
+            }
+            // Scan
+            else if (effectToRender === 'scan') {
+              const scanCycle = 4;
+              const cycleProgress = (elapsedSeconds * scanSpeed % scanCycle) / scanCycle;
+              
+              let scanPosition;
+              const direction = scanDirection || 'leftRight'; // Fallback si undefined
+              
+              if (direction === 'leftRight') {
+                scanPosition = cycleProgress * resolution.width;
+              } else if (direction === 'rightLeft') {
+                scanPosition = (1 - cycleProgress) * resolution.width;
+              } else if (direction === 'topBottom') {
+                scanPosition = cycleProgress * resolution.height;
+              } else { // bottomTop
+                scanPosition = (1 - cycleProgress) * resolution.height;
+              }
+
+              paths.forEach((path, pathIndex) => {
+                const pathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathElement.setAttribute('d', path.d);
+                tempSvg.appendChild(pathElement);
+
+                const totalLength = pathElement.getTotalLength();
+                const midPoint = pathElement.getPointAtLength(totalLength / 2);
+                const transformedMid = transformPoint(midPoint);
+                
+                let pathPosition;
+                if (direction === 'leftRight' || direction === 'rightLeft') {
+                  pathPosition = transformedMid.x;
+                } else {
+                  pathPosition = transformedMid.y;
+                }
+                
+                const distance = Math.abs(pathPosition - scanPosition);
+                const thickness = scanThickness || 100;
+                const intensity = Math.max(0, 1 - (distance / thickness));
+
+                if (intensity > 0.05) {
+                  const color = colors[pathIndex % colors.length];
+
+                  if (glowIntensity > 0) {
+                    for (let g = glowIntensity * intensity; g > 0; g -= 3) {
+                      ctx.strokeStyle = color;
+                      ctx.globalAlpha = 0.15 * intensity;
+                      ctx.lineWidth = 3 + g;
+                      ctx.lineCap = 'round';
+                      ctx.beginPath();
+                      for (let i = 0; i <= totalLength; i += 5) {
+                        const point = transformPoint(pathElement.getPointAtLength(Math.min(i, totalLength)));
+                        if (i === 0) ctx.moveTo(point.x, point.y);
+                        else ctx.lineTo(point.x, point.y);
+                      }
+                      ctx.stroke();
+                    }
+                  }
+
+                  ctx.strokeStyle = color;
+                  ctx.globalAlpha = intensity;
+                  ctx.lineWidth = 3;
+                  ctx.lineCap = 'round';
+                  ctx.beginPath();
+                  for (let i = 0; i <= totalLength; i += 2) {
+                    const point = transformPoint(pathElement.getPointAtLength(Math.min(i, totalLength)));
+                    if (i === 0) ctx.moveTo(point.x, point.y);
+                    else ctx.lineTo(point.x, point.y);
+                  }
+                  ctx.stroke();
+                  ctx.globalAlpha = 1.0;
+                }
+
+                tempSvg.removeChild(pathElement);
+              });
+            }
+            // Lightning
+            else if (effectToRender === 'lightning') {
+              // Simuler les éclairs pour chaque frame
+              const flashProbability = lightningFrequency / 100;
+              
+              paths.forEach((path, pathIndex) => {
+                const pathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathElement.setAttribute('d', path.d);
+                tempSvg.appendChild(pathElement);
+
+                const totalLength = pathElement.getTotalLength();
+                const color = colors[pathIndex % colors.length];
+                
+                // Générer un hash unique basé sur le temps pour des éclairs pseudo-aléatoires
+                const frameHash = Math.sin(elapsedSeconds * 1000 + pathIndex) * 10000;
+                const isFlashing = (frameHash % 1) < flashProbability;
+                const flashPhase = (elapsedSeconds * 10) % 1;
+                
+                let intensity = 0.05;
+                
+                if (isFlashing && flashPhase < lightningDuration) {
+                  const flashProgress = flashPhase / lightningDuration;
+                  if (flashProgress < 0.1) {
+                    intensity = lightningIntensity;
+                  } else {
+                    intensity = lightningIntensity * (1 - (flashProgress - 0.1) / 0.9);
+                  }
+                }
+
+                if (intensity > 0.02) {
+                  if (isFlashing && glowIntensity > 0) {
+                    for (let g = glowIntensity * intensity * 2; g > 0; g -= 3) {
+                      ctx.strokeStyle = color;
+                      ctx.globalAlpha = 0.2 * intensity;
+                      ctx.lineWidth = 3 + g;
+                      ctx.lineCap = 'round';
+                      ctx.beginPath();
+                      for (let i = 0; i <= totalLength; i += 5) {
+                        const point = transformPoint(pathElement.getPointAtLength(Math.min(i, totalLength)));
+                        if (i === 0) ctx.moveTo(point.x, point.y);
+                        else ctx.lineTo(point.x, point.y);
+                      }
+                      ctx.stroke();
+                    }
+                  }
+
+                  ctx.strokeStyle = color;
+                  ctx.globalAlpha = Math.min(intensity, 1);
+                  ctx.lineWidth = isFlashing ? 4 : 2;
+                  ctx.lineCap = 'round';
+                  ctx.beginPath();
+                  for (let i = 0; i <= totalLength; i += 2) {
+                    const point = transformPoint(pathElement.getPointAtLength(Math.min(i, totalLength)));
+                    if (i === 0) ctx.moveTo(point.x, point.y);
+                    else ctx.lineTo(point.x, point.y);
+                  }
+                  ctx.stroke();
+                  ctx.globalAlpha = 1.0;
+                }
+
+                tempSvg.removeChild(pathElement);
+              });
+            }
+            // Snowfall - Version COMPLÈTE avec physique et collisions
+            else if (effectToRender === 'snowfall') {
+              const deltaTime = 1 / renderFPS;
+              
+              // Initialiser les flocons si pas encore fait pour ce render
+              if (!window.offlineSnowflakes) {
+                window.offlineSnowflakes = [];
+              }
+              
+              // Construire les lignes de collision
+              const collisionLines = [];
+              paths.forEach((path, pathIndex) => {
+                if (!snowActivePaths.includes(pathIndex)) return;
+
+                const pathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathElement.setAttribute('d', path.d);
+                tempSvg.appendChild(pathElement);
+                
+                const totalLength = pathElement.getTotalLength();
+                const segments = Math.ceil(totalLength / 10);
+                
+                for (let i = 0; i < segments; i++) {
+                  const pos1 = transformPoint(pathElement.getPointAtLength((i / segments) * totalLength));
+                  const pos2 = transformPoint(pathElement.getPointAtLength(((i + 1) / segments) * totalLength));
+                  collisionLines.push({ x1: pos1.x, y1: pos1.y, x2: pos2.x, y2: pos2.y });
+                }
+                
+                tempSvg.removeChild(pathElement);
+              });
+
+              // Fonction helper pour collision ligne-cercle
+              const checkLineCircleCollision = (x1, y1, x2, y2, cx, cy, radius) => {
+                const dx = x2 - x1;
+                const dy = y2 - y1;
+                const len = Math.sqrt(dx * dx + dy * dy);
+                if (len === 0) return false;
+                
+                const dot = ((cx - x1) * dx + (cy - y1) * dy) / (len * len);
+                const closestX = x1 + dot * dx;
+                const closestY = y1 + dot * dy;
+                
+                if (dot < 0 || dot > 1) {
+                  const d1 = Math.sqrt((cx - x1) ** 2 + (cy - y1) ** 2);
+                  const d2 = Math.sqrt((cx - x2) ** 2 + (cy - y2) ** 2);
+                  return Math.min(d1, d2) < radius;
+                }
+                
+                const distance = Math.sqrt((cx - closestX) ** 2 + (cy - closestY) ** 2);
+                return distance < radius;
+              };
+
+              // Émettre de nouveaux flocons
+              const emissionRate = snowEmissionRate / 100;
+              if (Math.random() < emissionRate) {
+                window.offlineSnowflakes.push({
+                  x: Math.random() * resolution.width,
+                  y: -10,
+                  vx: (Math.random() - 0.5) * snowWind,
+                  vy: 0,
+                  size: snowInitialSize * (0.7 + Math.random() * 0.6),
+                  rotation: Math.random() * Math.PI * 2,
+                  rotationSpeed: (Math.random() - 0.5) * 2,
+                  settled: false,
+                  settledTime: 0,
+                  opacity: 1
+                });
+              }
+
+              // Mettre à jour les flocons
+              window.offlineSnowflakes = window.offlineSnowflakes.map(flake => {
+                if (flake.settled) {
+                  flake.settledTime += deltaTime;
+                  const meltProgress = flake.settledTime * snowMeltSpeed;
+                  flake.size = Math.max(0, snowInitialSize * (1 - meltProgress));
+                  flake.opacity = Math.max(0, 1 - meltProgress);
+                  return flake;
+                }
+                
+                // Physique
+                flake.vy += snowGravity * deltaTime;
+                flake.x += flake.vx * deltaTime;
+                flake.y += flake.vy * deltaTime;
+                flake.rotation += flake.rotationSpeed * deltaTime;
+                
+                // Vérifier collision
+                for (const line of collisionLines) {
+                  if (checkLineCircleCollision(
+                    line.x1, line.y1, line.x2, line.y2,
+                    flake.x, flake.y, flake.size / 2
+                  )) {
+                    flake.settled = true;
+                    flake.vy = 0;
+                    flake.vx = 0;
+                    break;
+                  }
+                }
+                
+                // Supprimer si hors écran
+                if (flake.y > resolution.height + 50 || flake.x < -50 || flake.x > resolution.width + 50) {
+                  return null;
+                }
+                
+                return flake;
+              }).filter(f => f !== null && f.size > 0.1);
+
+              // Afficher les lignes de collision si activé
+              if (showStrokesForCollision) {
+                paths.forEach((path, pathIndex) => {
+                  if (!snowActivePaths.includes(pathIndex)) return;
+
+                  const pathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                  pathElement.setAttribute('d', path.d);
+                  tempSvg.appendChild(pathElement);
+
+                  const totalLength = pathElement.getTotalLength();
+                  const color = colors[pathIndex % colors.length];
+
+                  ctx.strokeStyle = color;
+                  ctx.globalAlpha = 0.5;
+                  ctx.lineWidth = 2;
+                  ctx.lineCap = 'round';
+                  ctx.beginPath();
+
+                  for (let i = 0; i <= totalLength; i += 5) {
+                    const point = transformPoint(pathElement.getPointAtLength(Math.min(i, totalLength)));
+                    if (i === 0) ctx.moveTo(point.x, point.y);
+                    else ctx.lineTo(point.x, point.y);
+                  }
+                  ctx.stroke();
+                  ctx.globalAlpha = 1.0;
+
+                  tempSvg.removeChild(pathElement);
+                });
+              }
+
+              // Dessiner les flocons
+              window.offlineSnowflakes.forEach(flake => {
+                ctx.save();
+                ctx.translate(flake.x, flake.y);
+                ctx.rotate(flake.rotation);
+                ctx.globalAlpha = flake.opacity;
+                
+                ctx.fillStyle = '#FFFFFF';
+                ctx.strokeStyle = '#FFFFFF';
+                ctx.lineWidth = 1;
+                
+                const branches = 6;
+                for (let i = 0; i < branches; i++) {
+                  const angle = (i / branches) * Math.PI * 2;
+                  ctx.beginPath();
+                  ctx.moveTo(0, 0);
+                  ctx.lineTo(
+                    Math.cos(angle) * flake.size,
+                    Math.sin(angle) * flake.size
+                  );
+                  ctx.stroke();
+                  
+                  for (let j = 0.3; j <= 0.7; j += 0.4) {
+                    const subSize = flake.size * 0.3;
+                    const px = Math.cos(angle) * flake.size * j;
+                    const py = Math.sin(angle) * flake.size * j;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(px, py);
+                    ctx.lineTo(
+                      px + Math.cos(angle + Math.PI / 4) * subSize,
+                      py + Math.sin(angle + Math.PI / 4) * subSize
+                    );
+                    ctx.stroke();
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(px, py);
+                    ctx.lineTo(
+                      px + Math.cos(angle - Math.PI / 4) * subSize,
+                      py + Math.sin(angle - Math.PI / 4) * subSize
+                    );
+                    ctx.stroke();
+                  }
+                }
+                
+                ctx.beginPath();
+                ctx.arc(0, 0, flake.size * 0.2, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.restore();
+              });
+            }
+            // Fallback pour autres effets
+            else {
+              // Fallback : dessiner tous les paths
+              paths.forEach((path, pathIndex) => {
+                const pathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathElement.setAttribute('d', path.d);
+                tempSvg.appendChild(pathElement);
+
+                const totalLength = pathElement.getTotalLength();
+                const color = colors[pathIndex % colors.length];
+
+                ctx.strokeStyle = color;
+                ctx.globalAlpha = 0.8;
+                ctx.lineWidth = 2;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+
+                for (let i = 0; i <= totalLength; i += 3) {
+                  const point = transformPoint(pathElement.getPointAtLength(Math.min(i, totalLength)));
+                  if (i === 0) ctx.moveTo(point.x, point.y);
+                  else ctx.lineTo(point.x, point.y);
+                }
+                ctx.stroke();
+                ctx.globalAlpha = 1.0;
+
+                tempSvg.removeChild(pathElement);
+              });
+            }
+          };
+
+          const exportFramesAsZip = async (frames) => {
+            try {
+              console.log('Début création du ZIP...');
+              
+              // Vérifier que JSZip est chargé
+              if (!window.JSZip) {
+                throw new Error('JSZip n\'est pas chargé');
+              }
+
+              const zip = new JSZip();
+              const folder = zip.folder('frames');
+
+              console.log(`Ajout de ${frames.length} frames au ZIP...`);
+
+              frames.forEach((frameData, index) => {
+                const frameNumber = String(index).padStart(4, '0');
+                const base64Data = frameData.split(',')[1];
+                folder.file(`frame_${frameNumber}.png`, base64Data, { base64: true });
+                
+                if (index % 50 === 0) {
+                  console.log(`Frame ${index}/${frames.length} ajoutée au ZIP`);
+                }
+              });
+
+              console.log('Génération du fichier ZIP...');
+              const content = await zip.generateAsync({ 
+                type: 'blob',
+                compression: 'DEFLATE',
+                compressionOptions: { level: 6 }
+              });
+
+              console.log('Téléchargement du ZIP...');
+              const url = URL.createObjectURL(content);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `projection_mapping_${Date.now()}.zip`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              
+              // Nettoyer après un délai
+              setTimeout(() => URL.revokeObjectURL(url), 1000);
+              
+              console.log('ZIP téléchargé avec succès !');
+              alert(`✅ ZIP téléchargé avec succès !\n${frames.length} frames exportées.`);
+              
+            } catch (error) {
+              console.error('Erreur lors de la création du ZIP:', error);
+              alert('❌ Erreur lors de l\'export: ' + error.message);
+            }
+          };
+
+          const exportFramesAsWebM = async (frames, fps) => {
+            alert('Export WebM en développement. Utilisez PNG sequence pour le moment.');
+          };
+
+          const exportFrame = () => {
+            const canvas = canvasRef.current;
+            if (!canvas) return;
+
+            const link = document.createElement('a');
+            link.download = `frame_${Date.now()}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+          };
+
+          return (
+            <div className="w-full h-screen bg-gray-900 text-white flex">
+              <div className="w-80 bg-gray-800 p-6 overflow-y-auto">
+                <h1 className="text-2xl font-bold mb-1">Rapido Mappo</h1>
+                <p className="text-xs text-gray-400 mb-6">by FredHau</p>
+                
+                <div className="mb-6">
+                  <label className="block mb-2 text-sm font-medium">Importer SVG</label>
+                  <div className="border-2 border-dashed border-gray-600 rounded-lg p-4 text-center cursor-pointer hover:border-gray-500">
+                    <input
+                      type="file"
+                      accept=".svg"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                      id="svg-upload"
+                    />
+                    <label htmlFor="svg-upload" className="cursor-pointer">
+                      <svg className="mx-auto mb-2" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                      </svg>
+                      <p className="text-sm">Cliquez pour uploader SVG</p>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Upload Background */}
+                <div className="mb-6">
+                  <label className="block mb-2 text-sm font-medium">Image de référence (JPG/PNG)</label>
+                  <div className="border-2 border-dashed border-gray-600 rounded-lg p-3 text-center cursor-pointer hover:border-gray-500">
+                    <input
+                      type="file"
+                      accept=".jpg,.jpeg,.png"
+                      onChange={handleBackgroundUpload}
+                      className="hidden"
+                      id="bg-upload"
+                    />
+                    <label htmlFor="bg-upload" className="cursor-pointer">
+                      <p className="text-xs">📷 Background</p>
+                    </label>
+                  </div>
+                  {backgroundImage && (
+                    <label className="flex items-center gap-2 mt-2 cursor-pointer text-xs">
+                      <input
+                        type="checkbox"
+                        checked={showBackground}
+                        onChange={(e) => setShowBackground(e.target.checked)}
+                        className="w-3 h-3"
+                      />
+                      <span>Afficher le background</span>
+                    </label>
+                  )}
+                </div>
+
+                {/* Résolution */}
+                <div className="mb-6">
+                  <label className="block mb-2 text-sm font-medium">Résolution</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      value={resolution.width}
+                      onChange={(e) => setResolution({...resolution, width: Number(e.target.value)})}
+                      className="w-full bg-gray-700 p-2 rounded text-white"
+                      placeholder="Width"
+                    />
+                    <input
+                      type="number"
+                      value={resolution.height}
+                      onChange={(e) => setResolution({...resolution, height: Number(e.target.value)})}
+                      className="w-full bg-gray-700 p-2 rounded text-white"
+                      placeholder="Height"
+                    />
+                  </div>
+                </div>
+
+                {/* Couleurs */}
+                <div className="mb-6">
+                  <label className="block mb-2 text-sm font-medium">Palette de couleurs</label>
+                  
+                  {/* Import palette */}
+                  <div className="mb-3">
+                    <input
+                      type="file"
+                      accept=".txt,.json"
+                      onChange={handlePaletteUpload}
+                      className="hidden"
+                      id="palette-upload"
+                    />
+                    <label
+                      htmlFor="palette-upload"
+                      className="block w-full bg-gray-700 hover:bg-gray-600 text-center py-2 rounded cursor-pointer text-xs"
+                    >
+                      📁 Importer palette Coolors (.txt)
+                    </label>
+                  </div>
+
+                  {/* Color pickers */}
+                  <div className="grid grid-cols-4 gap-2">
+                    {colors.map((color, index) => (
+                      <input
+                        key={index}
+                        type="color"
+                        value={color}
+                        onChange={(e) => {
+                          const newColors = [...colors];
+                          newColors[index] = e.target.value;
+                          setColors(newColors);
+                        }}
+                        className="w-full h-10 rounded cursor-pointer"
+                      />
+                    ))}
+                  </div>
+                  
+                  {colors.length > 4 && (
+                    <p className="text-xs text-gray-400 mt-2">
+                      {colors.length} couleurs chargées
+                    </p>
+                  )}
+
+                  {/* Boutons pour ajouter/retirer des couleurs */}
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      onClick={() => setColors([...colors, '#ffffff'])}
+                      className="flex-1 bg-green-700 hover:bg-green-600 py-1 rounded text-xs"
+                    >
+                      + Couleur
+                    </button>
+                    {colors.length > 1 && (
+                      <button
+                        onClick={() => setColors(colors.slice(0, -1))}
+                        className="flex-1 bg-red-700 hover:bg-red-600 py-1 rounded text-xs"
+                      >
+                        - Couleur
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Sélection de l'effet */}
+                <div className="mb-6">
+                  <label className="block mb-2 text-sm font-medium">Type d'effet</label>
+                  <select
+                    value={currentEffect}
+                    onChange={(e) => setCurrentEffect(e.target.value)}
+                    className="w-full bg-gray-700 text-white p-2 rounded border border-gray-600 cursor-pointer"
+                  >
+                    <option value="alignment">🎯 Calage SVG</option>
+                    <option value="strokeFlow">Stroke Flow</option>
+                    <option value="wave">Wave</option>
+                    <option value="pulse">Pulse</option>
+                    <option value="radialBurst">Radial Burst</option>
+                    <option value="scan">Scan</option>
+                    <option value="lightning">Lightning ⚡</option>
+                    <option value="snowfall">Snowfall ❄️</option>
+                    <option value="render">🎬 Render Offline</option>
+                  </select>
+                </div>
+
+                <div className="mb-6 space-y-2">
+                  <button
+                    onClick={() => setIsPlaying(!isPlaying)}
+                    disabled={paths.length === 0}
+                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 py-2 rounded flex items-center justify-center gap-2"
+                  >
+                    {isPlaying ? (
+                      <>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="6" y="4" width="4" height="16"></rect>
+                          <rect x="14" y="4" width="4" height="16"></rect>
+                        </svg>
+                        Pause
+                      </>
+                    ) : (
+                      <>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                        Play
+                      </>
+                    )}
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      setIsPlaying(false);
+                      setAnimationStartTime(null);
+                      if (paths.length > 0) {
+                        initializeParticles(paths);
+                      }
+                    }}
+                    disabled={paths.length === 0}
+                    className="w-full bg-gray-600 hover:bg-gray-700 disabled:bg-gray-800 py-2 rounded flex items-center justify-center gap-2 text-sm"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="6" y="4" width="4" height="16"></rect>
+                      <rect x="14" y="4" width="4" height="16"></rect>
+                    </svg>
+                    Stop (Reset)
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Paramètres Stroke Flow */}
+                  {currentEffect === 'strokeFlow' && (
+                    <>
+                      <div>
+                        <label className="block mb-2 text-sm">Longueur segment: {segmentLength}px</label>
+                        <input
+                          type="range"
+                          min="10"
+                          max="100"
+                          value={segmentLength}
+                          onChange={(e) => setSegmentLength(Number(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block mb-2 text-sm">Vitesse: {speed.toFixed(1)}x</label>
+                        <input
+                          type="range"
+                          min="0.1"
+                          max="3"
+                          step="0.1"
+                          value={speed}
+                          onChange={(e) => setSpeed(Number(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block mb-2 text-sm">Particules par path: {particleCount}</label>
+                        <input
+                          type="range"
+                          min="1"
+                          max="10"
+                          value={particleCount}
+                          onChange={(e) => setParticleCount(Number(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block mb-2 text-sm">Fade aux extrémités: {(fadeIntensity * 100).toFixed(0)}%</label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          value={fadeIntensity}
+                          onChange={(e) => setFadeIntensity(Number(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+
+                      {/* Mode Random */}
+                      <div className="border-t border-gray-600 pt-4 mt-4">
+                        <label className="flex items-center gap-2 mb-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={randomMode}
+                            onChange={(e) => setRandomMode(e.target.checked)}
+                            className="w-4 h-4"
+                          />
+                          <span className="text-sm font-medium">Mode Random (flux contrôlé)</span>
+                        </label>
+
+                        {randomMode && (
+                          <div>
+                            <label className="block mb-2 text-sm">Lignes actives: {activePathsPercent}%</label>
+                            <input
+                              type="range"
+                              min="5"
+                              max="100"
+                              step="5"
+                              value={activePathsPercent}
+                              onChange={(e) => setActivePathsPercent(Number(e.target.value))}
+                              className="w-full"
+                            />
+                            <p className="text-xs text-gray-400 mt-1">
+                              {Math.floor(paths.length * activePathsPercent / 100)} paths actifs sur {paths.length}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                  {/* Paramètres Wave */}
+                  {currentEffect === 'wave' && (
+                    <>
+                      <div>
+                        <label className="block mb-2 text-sm">Amplitude: {waveAmplitude}px</label>
+                        <input
+                          type="range"
+                          min="10"
+                          max="200"
+                          value={waveAmplitude}
+                          onChange={(e) => setWaveAmplitude(Number(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block mb-2 text-sm">Fréquence: {waveFrequency.toFixed(1)}</label>
+                        <input
+                          type="range"
+                          min="0.5"
+                          max="5"
+                          step="0.1"
+                          value={waveFrequency}
+                          onChange={(e) => setWaveFrequency(Number(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block mb-2 text-sm">Vitesse: {waveSpeed.toFixed(1)}x</label>
+                        <input
+                          type="range"
+                          min="0.1"
+                          max="3"
+                          step="0.1"
+                          value={waveSpeed}
+                          onChange={(e) => setWaveSpeed(Number(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block mb-2 text-sm">Direction</label>
+                        <select
+                          value={waveDirection}
+                          onChange={(e) => setWaveDirection(e.target.value)}
+                          className="w-full bg-gray-700 text-white p-2 rounded border border-gray-600"
+                        >
+                          <option value="vertical">Vertical (↕)</option>
+                          <option value="horizontal">Horizontal (↔)</option>
+                        </select>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Paramètres Pulse */}
+                  {currentEffect === 'pulse' && (
+                    <>
+                      <div>
+                        <label className="block mb-2 text-sm">BPM: {pulseBPM}</label>
+                        <input
+                          type="range"
+                          min="20"
+                          max="180"
+                          value={pulseBPM}
+                          onChange={(e) => setPulseBPM(Number(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block mb-2 text-sm">Intensité min: {(pulseMinIntensity * 100).toFixed(0)}%</label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          value={pulseMinIntensity}
+                          onChange={(e) => setPulseMinIntensity(Number(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block mb-2 text-sm">Intensité max: {(pulseMaxIntensity * 100).toFixed(0)}%</label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          value={pulseMaxIntensity}
+                          onChange={(e) => setPulseMaxIntensity(Number(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {/* Paramètres Radial Burst */}
+                  {currentEffect === 'radialBurst' && (
+                    <>
+                      <div>
+                        <label className="block mb-2 text-sm">Origine X: {burstOriginX}%</label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={burstOriginX}
+                          onChange={(e) => setBurstOriginX(Number(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block mb-2 text-sm">Origine Y: {burstOriginY}%</label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={burstOriginY}
+                          onChange={(e) => setBurstOriginY(Number(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block mb-2 text-sm">Vitesse: {burstSpeed.toFixed(1)}x</label>
+                        <input
+                          type="range"
+                          min="0.1"
+                          max="3"
+                          step="0.1"
+                          value={burstSpeed}
+                          onChange={(e) => setBurstSpeed(Number(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {/* Paramètres Scan */}
+                  {currentEffect === 'scan' && (
+                    <>
+                      <div>
+                        <label className="block mb-2 text-sm">Vitesse: {scanSpeed.toFixed(1)}x</label>
+                        <input
+                          type="range"
+                          min="0.1"
+                          max="3"
+                          step="0.1"
+                          value={scanSpeed}
+                          onChange={(e) => setScanSpeed(Number(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block mb-2 text-sm">Épaisseur: {scanThickness}px</label>
+                        <input
+                          type="range"
+                          min="50"
+                          max="500"
+                          value={scanThickness}
+                          onChange={(e) => setScanThickness(Number(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block mb-2 text-sm">Direction</label>
+                        <select
+                          value={scanDirection}
+                          onChange={(e) => setScanDirection(e.target.value)}
+                          className="w-full bg-gray-700 text-white p-2 rounded border border-gray-600"
+                        >
+                          <option value="leftRight">Gauche → Droite</option>
+                          <option value="rightLeft">Droite → Gauche</option>
+                          <option value="topBottom">Haut → Bas</option>
+                          <option value="bottomTop">Bas → Haut</option>
+                        </select>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Paramètres Lightning */}
+                  {currentEffect === 'lightning' && (
+                    <>
+                      <div>
+                        <label className="block mb-2 text-sm">Fréquence: {lightningFrequency.toFixed(1)}</label>
+                        <input
+                          type="range"
+                          min="0.5"
+                          max="10"
+                          step="0.5"
+                          value={lightningFrequency}
+                          onChange={(e) => setLightningFrequency(Number(e.target.value))}
+                          className="w-full"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">Probabilité d'éclairs par frame</p>
+                      </div>
+
+                      <div>
+                        <label className="block mb-2 text-sm">Intensité: {lightningIntensity.toFixed(1)}x</label>
+                        <input
+                          type="range"
+                          min="0.5"
+                          max="3"
+                          step="0.1"
+                          value={lightningIntensity}
+                          onChange={(e) => setLightningIntensity(Number(e.target.value))}
+                          className="w-full"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">Luminosité des éclairs</p>
+                      </div>
+
+                      <div>
+                        <label className="block mb-2 text-sm">Durée: {(lightningDuration * 1000).toFixed(0)}ms</label>
+                        <input
+                          type="range"
+                          min="0.05"
+                          max="0.5"
+                          step="0.05"
+                          value={lightningDuration}
+                          onChange={(e) => setLightningDuration(Number(e.target.value))}
+                          className="w-full"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">Durée du flash</p>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Paramètres Snowfall */}
+                  {currentEffect === 'snowfall' && (
+                    <>
+                      <div>
+                        <label className="block mb-2 text-sm">Émission: {snowEmissionRate}</label>
+                        <input
+                          type="range"
+                          min="1"
+                          max="20"
+                          value={snowEmissionRate}
+                          onChange={(e) => setSnowEmissionRate(Number(e.target.value))}
+                          className="w-full"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">Nombre de flocons générés</p>
+                      </div>
+
+                      <div>
+                        <label className="block mb-2 text-sm">Gravité: {snowGravity}</label>
+                        <input
+                          type="range"
+                          min="10"
+                          max="200"
+                          value={snowGravity}
+                          onChange={(e) => setSnowGravity(Number(e.target.value))}
+                          className="w-full"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">Vitesse de chute</p>
+                      </div>
+
+                      <div>
+                        <label className="block mb-2 text-sm">Vent: {snowWind}</label>
+                        <input
+                          type="range"
+                          min="-50"
+                          max="50"
+                          value={snowWind}
+                          onChange={(e) => setSnowWind(Number(e.target.value))}
+                          className="w-full"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">Direction horizontale</p>
+                      </div>
+
+                      <div>
+                        <label className="block mb-2 text-sm">Taille flocons: {snowInitialSize}px</label>
+                        <input
+                          type="range"
+                          min="4"
+                          max="20"
+                          value={snowInitialSize}
+                          onChange={(e) => setSnowInitialSize(Number(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block mb-2 text-sm">Vitesse fonte: {snowMeltSpeed.toFixed(1)}</label>
+                        <input
+                          type="range"
+                          min="0.1"
+                          max="2"
+                          step="0.1"
+                          value={snowMeltSpeed}
+                          onChange={(e) => setSnowMeltSpeed(Number(e.target.value))}
+                          className="w-full"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">Rapidité de disparition</p>
+                      </div>
+
+                      <div className="border-t border-gray-600 pt-3 mt-3">
+                        <div className="mb-3">
+                          <label className="block mb-2 text-sm">Lignes actives (collisions): {snowActivePathsPercent}%</label>
+                          <input
+                            type="range"
+                            min="10"
+                            max="100"
+                            step="5"
+                            value={snowActivePathsPercent}
+                            onChange={(e) => setSnowActivePathsPercent(Number(e.target.value))}
+                            className="w-full"
+                          />
+                          <p className="text-xs text-gray-400 mt-1">
+                            {Math.floor(paths.length * snowActivePathsPercent / 100)} paths avec collision sur {paths.length}
+                          </p>
+                        </div>
+
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={showStrokesForCollision}
+                            onChange={(e) => setShowStrokesForCollision(e.target.checked)}
+                            className="w-4 h-4"
+                          />
+                          <span className="text-sm">Afficher les lignes actives</span>
+                        </label>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Mode Calage SVG */}
+                  {currentEffect === 'alignment' && (
+                    <>
+                      <div className="bg-blue-900 bg-opacity-30 p-3 rounded mb-4">
+                        <p className="text-xs text-blue-200">
+                          🎯 Mode calage : Ajustez la position et l'échelle de votre SVG pour l'aligner parfaitement sur votre image de référence.
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block mb-2 text-sm">Position X: {svgOffsetX}px</label>
+                        <input
+                          type="range"
+                          min={-resolution.width}
+                          max={resolution.width}
+                          value={svgOffsetX}
+                          onChange={(e) => setSvgOffsetX(Number(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block mb-2 text-sm">Position Y: {svgOffsetY}px</label>
+                        <input
+                          type="range"
+                          min={-resolution.height}
+                          max={resolution.height}
+                          value={svgOffsetY}
+                          onChange={(e) => setSvgOffsetY(Number(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block mb-2 text-sm">Échelle: {svgScale.toFixed(2)}x</label>
+                        <input
+                          type="range"
+                          min="0.1"
+                          max="3"
+                          step="0.01"
+                          value={svgScale}
+                          onChange={(e) => setSvgScale(Number(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setSvgOffsetX(0);
+                          setSvgOffsetY(0);
+                          setSvgScale(1);
+                        }}
+                        className="w-full mt-3 bg-gray-600 hover:bg-gray-700 py-2 rounded text-sm"
+                      >
+                        Reset position
+                      </button>
+
+                      {!backgroundImage && (
+                        <div className="mt-4 p-3 bg-yellow-900 bg-opacity-30 rounded">
+                          <p className="text-xs text-yellow-200">
+                            💡 Uploadez une image de référence pour faciliter le calage !
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* Mode Render Offline */}
+                  {currentEffect === 'render' && (
+                    <>
+                      <div className="bg-purple-900 bg-opacity-30 p-3 rounded mb-4">
+                        <p className="text-xs text-purple-200">
+                          🎬 Render Offline : Génère une vidéo sans lag, frame par frame. Parfait pour export final !
+                        </p>
+                      </div>
+
+                      {/* Sélection de l'effet à render */}
+                      <div className="mb-4">
+                        <label className="block mb-2 text-sm font-medium">Effet à générer</label>
+                        <select
+                          value={renderEffectType}
+                          onChange={(e) => setRenderEffectType(e.target.value)}
+                          className="w-full bg-gray-700 text-white p-2 rounded border border-gray-600 cursor-pointer"
+                        >
+                          <option value="strokeFlow">Stroke Flow</option>
+                          <option value="wave">Wave</option>
+                          <option value="pulse">Pulse</option>
+                          <option value="radialBurst">Radial Burst</option>
+                          <option value="scan">Scan</option>
+                          <option value="lightning">Lightning ⚡</option>
+                          <option value="snowfall">Snowfall ❄️</option>
+                        </select>
+                        <p className="text-xs text-gray-400 mt-1">
+                          💡 Les paramètres utilisés seront ceux configurés dans chaque effet
+                        </p>
+                      </div>
+
+                      {['pulse', 'wave', 'radialBurst'].includes(renderEffectType) ? (
+                        <div>
+                          <label className="block mb-2 text-sm">Nombre de cycles: {renderCycles}</label>
+                          <input
+                            type="range"
+                            min="1"
+                            max="10"
+                            value={renderCycles}
+                            onChange={(e) => setRenderCycles(Number(e.target.value))}
+                            className="w-full"
+                          />
+                          <p className="text-xs text-gray-400 mt-1">
+                            Durée calculée: {
+                              renderEffectType === 'pulse' ? ((60 / pulseBPM) * renderCycles).toFixed(1) :
+                              renderEffectType === 'wave' ? (renderCycles * 4).toFixed(1) :
+                              (renderCycles * 3).toFixed(1)
+                            }s
+                          </p>
+                        </div>
+                      ) : (
+                        <div>
+                          <label className="block mb-2 text-sm">Durée: {renderDuration}s</label>
+                          <input
+                            type="range"
+                            min="1"
+                            max="60"
+                            value={renderDuration}
+                            onChange={(e) => setRenderDuration(Number(e.target.value))}
+                            className="w-full"
+                          />
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="block mb-2 text-sm">FPS</label>
+                        <select
+                          value={renderFPS}
+                          onChange={(e) => setRenderFPS(Number(e.target.value))}
+                          className="w-full bg-gray-700 text-white p-2 rounded border border-gray-600"
+                        >
+                          <option value="24">24 FPS (Cinema)</option>
+                          <option value="25">25 FPS (PAL)</option>
+                          <option value="30">30 FPS (NTSC)</option>
+                          <option value="60">60 FPS (Smooth)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block mb-2 text-sm">Format d'export</label>
+                        <select
+                          value={renderFormat}
+                          onChange={(e) => setRenderFormat(e.target.value)}
+                          className="w-full bg-gray-700 text-white p-2 rounded border border-gray-600"
+                        >
+                          <option value="png">PNG Sequence (ZIP) ✅</option>
+                        </select>
+                        <p className="text-xs text-gray-400 mt-1">
+                          Format PNG = Qualité maximale garantie
+                        </p>
+                      </div>
+
+                      <div className="mt-4 p-3 bg-gray-700 rounded text-xs">
+                        <p className="font-bold mb-1">Calcul:</p>
+                        <p>Frames totales: {Math.floor(
+                          (['pulse', 'wave', 'radialBurst'].includes(renderEffectType) ? 
+                            (renderEffectType === 'pulse' ? ((60 / pulseBPM) * renderCycles) :
+                             renderEffectType === 'wave' ? (renderCycles * 4) :
+                             (renderCycles * 3)) :
+                            renderDuration) * renderFPS
+                        )}</p>
+                        <p>Taille estimée: ~{Math.floor(
+                          (['pulse', 'wave', 'radialBurst'].includes(renderEffectType) ? 
+                            (renderEffectType === 'pulse' ? ((60 / pulseBPM) * renderCycles) :
+                             renderEffectType === 'wave' ? (renderCycles * 4) :
+                             (renderCycles * 3)) :
+                            renderDuration) * renderFPS * 2
+                        )} MB</p>
+                      </div>
+
+                      {!isRenderingOffline ? (
+                        <button
+                          onClick={startOfflineRender}
+                          disabled={paths.length === 0}
+                          className="w-full mt-4 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 py-3 rounded font-bold"
+                        >
+                          🎬 Générer la vidéo
+                        </button>
+                      ) : (
+                        <div className="mt-4">
+                          <div className="bg-gray-700 rounded p-3">
+                            <p className="text-sm mb-2">Génération en cours...</p>
+                            <div className="w-full bg-gray-600 rounded-full h-4">
+                              <div
+                                className="bg-purple-500 h-4 rounded-full transition-all"
+                                style={{ width: `${renderProgress}%` }}
+                              ></div>
+                            </div>
+                            <p className="text-xs text-center mt-1">{renderProgress}%</p>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="mt-4 p-3 bg-blue-900 bg-opacity-30 rounded text-xs">
+                        <p className="text-blue-200">
+                          💡 <strong>Astuce:</strong> Après téléchargement du ZIP, utilisez FFmpeg pour assembler :
+                        </p>
+                        <code className="block mt-2 bg-black bg-opacity-50 p-2 rounded text-green-400 text-xs break-all">
+                          ffmpeg -framerate {renderFPS} -i frame_%04d.png -c:v libx264 -pix_fmt yuv420p output.mp4
+                        </code>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Paramètres communs */}
+                  <div className="border-t border-gray-600 pt-4">
+                    <div className="mb-4">
+                      <label className="block mb-2 text-sm font-medium">Mode de rendu</label>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setRenderMode('stroke')}
+                          className={`flex-1 py-2 px-3 rounded text-sm ${
+                            renderMode === 'stroke'
+                              ? 'bg-cyan-600 text-white'
+                              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          }`}
+                        >
+                          Stroke (contour)
+                        </button>
+                        <button
+                          onClick={() => setRenderMode('fill')}
+                          className={`flex-1 py-2 px-3 rounded text-sm ${
+                            renderMode === 'fill'
+                              ? 'bg-cyan-600 text-white'
+                              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          }`}
+                        >
+                          Fill (remplissage)
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-2">
+                        {renderMode === 'fill' && '⚠️ Fill fonctionne uniquement sur les formes fermées'}
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block mb-2 text-sm">Glow: {glowIntensity}px</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="30"
+                        value={glowIntensity}
+                        onChange={(e) => setGlowIntensity(Number(e.target.value))}
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block mb-2 text-sm">Couleurs</label>
+                    <div className="grid grid-cols-4 gap-2">
+                      {colors.map((color, index) => (
+                        <input
+                          key={index}
+                          type="color"
+                          value={color}
+                          onChange={(e) => {
+                            const newColors = [...colors];
+                            newColors[index] = e.target.value;
+                            setColors(newColors);
+                          }}
+                          className="w-full h-10 rounded cursor-pointer"
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block mb-2 text-sm">Résolution</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        value={resolution.width}
+                        onChange={(e) => setResolution({...resolution, width: Number(e.target.value)})}
+                        className="w-full bg-gray-700 p-2 rounded text-white"
+                        placeholder="Width"
+                      />
+                      <input
+                        type="number"
+                        value={resolution.height}
+                        onChange={(e) => setResolution({...resolution, height: Number(e.target.value)})}
+                        className="w-full bg-gray-700 p-2 rounded text-white"
+                        placeholder="Height"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 space-y-2">
+                  {!isRecording ? (
+                    <>
+                      <button
+                        onClick={startRecording}
+                        disabled={paths.length === 0}
+                        className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-600 py-2 rounded flex items-center justify-center gap-2"
+                      >
+                        <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+                        Enregistrer Vidéo
+                      </button>
+                      <button
+                        onClick={exportFrame}
+                        disabled={paths.length === 0}
+                        className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-600 py-2 rounded flex items-center justify-center gap-2"
+                      >
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                          <polyline points="7 10 12 15 17 10"></polyline>
+                          <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        Exporter Frame PNG
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={stopRecording}
+                      className="w-full bg-red-800 hover:bg-red-900 py-2 rounded flex items-center justify-center gap-2"
+                    >
+                      <div className="w-3 h-3 bg-white rounded-sm"></div>
+                      Arrêter l'enregistrement
+                    </button>
+                  )}
+                  <p className="text-xs text-gray-400 mt-2">
+                    {isRecording ? 'Enregistrement en cours...' : 'Format: WebM (VP9)'}
+                  </p>
+                </div>
+
+                {paths.length > 0 && (
+                  <div className="mt-6 p-4 bg-gray-700 rounded text-sm space-y-1">
+                    <p>Paths détectés: {paths.length}</p>
+                    <p>Effet actif: <span className="text-cyan-400 font-bold">
+                      {currentEffect === 'strokeFlow' ? 'Stroke Flow' : 
+                       currentEffect === 'wave' ? 'Wave' : 
+                       currentEffect === 'pulse' ? 'Pulse' :
+                       currentEffect === 'radialBurst' ? 'Radial Burst' : 
+                       currentEffect === 'scan' ? 'Scan' : 
+                       currentEffect === 'lightning' ? 'Lightning ⚡' : 'Snowfall ❄️'}
+                    </span></p>
+                    {currentEffect === 'strokeFlow' && (
+                      <>
+                        <p>Particules actives: {particles.length}</p>
+                        {randomMode && (
+                          <p className="text-cyan-400">
+                            🎲 Mode Random: {activePaths.length} paths actifs
+                          </p>
+                        )}
+                      </>
+                    )}
+                    {currentEffect === 'lightning' && lightningPaths.length > 0 && (
+                      <p className="text-yellow-400">
+                        ⚡ {lightningPaths.length} éclair(s) actif(s)
+                      </p>
+                    )}
+                    {currentEffect === 'snowfall' && (
+                      <p className="text-blue-200">
+                        ❄️ {snowflakes.length} flocon(s) actif(s) • {snowActivePaths.length} lignes actives
+                      </p>
+                    )}
+                    {isRecording && (
+                      <p className="text-red-400 font-bold mt-2">🔴 ENREGISTREMENT</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex-1 flex items-center justify-center bg-black">
+                <canvas
+                  ref={canvasRef}
+                  width={resolution.width}
+                  height={resolution.height}
+                  className="max-w-full max-h-full"
+                  style={{ imageRendering: 'crisp-edges' }}
+                />
+              </div>
+            </div>
+          );
+        };
+
+        ReactDOM.render(<ProjectionMappingAnimator />, document.getElementById('root'));
+    </script>
+</body>
+</html>
