@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="theme-color" content="#0a0a0a"/>
+<title>IMG → PDF</title>
+
+<!-- jsPDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+  /* ── Reset & tokens ───────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:      #0a0a0a;
+    --surf:    #141414;
+    --surf2:   #1e1e1e;
+    --border:  #262626;
+    --accent:  #c8ff00;
+    --danger:  #ff4444;
+    --text:    #f0f0f0;
+    --muted:   #555;
+    --radius:  14px;
+    --safe-b:  env(safe-area-inset-bottom, 0px);
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', 'Courier New', monospace;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  /* ── Layout shell ─────────────────────────────────────────────── */
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    max-width: 480px;
+    margin: 0 auto;
+    position: relative;
+  }
+
+  /* ── Header ───────────────────────────────────────────────────── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 20px 14px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    padding-top: max(20px, env(safe-area-inset-top, 20px));
+  }
+
+  .logo {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .logo-title {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -1px;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .logo-title span { color: var(--accent); }
+
+  .logo-sub {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  #clear-btn {
+    background: none;
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    display: none;
+    transition: background .15s;
+  }
+  #clear-btn:active { background: #ff444422; }
+
+  /* ── Swap banner ──────────────────────────────────────────────── */
+  #swap-banner {
+    background: #1a1a00;
+    border-bottom: 1px solid #c8ff0033;
+    padding: 8px 16px;
+    font-size: 11px;
+    color: var(--accent);
+    text-align: center;
+    letter-spacing: .3px;
+    display: none;
+    flex-shrink: 0;
+  }
+
+  /* ── Scroll area ──────────────────────────────────────────────── */
+  #scroll {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  /* ── Empty state ──────────────────────────────────────────────── */
+  #empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    height: 100%;
+    padding: 40px;
+    text-align: center;
+    animation: fadeUp .5s ease both;
+  }
+
+  .empty-icon {
+    font-size: 52px;
+    opacity: .15;
+    line-height: 1;
+  }
+
+  .empty-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .empty-desc {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.8;
+    max-width: 260px;
+  }
+
+  /* ── Grid ─────────────────────────────────────────────────────── */
+  #grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    padding: 14px;
+  }
+
+  /* ── Thumb card ───────────────────────────────────────────────── */
+  .card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    animation: popIn .25s cubic-bezier(.34,1.56,.64,1) both;
+  }
+
+  .thumb-wrap {
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
+    aspect-ratio: 3/4;
+    background: var(--surf2);
+    cursor: pointer;
+    transition: transform .15s, outline .1s;
+    outline: 2px solid transparent;
+  }
+
+  .thumb-wrap:active { transform: scale(.97); }
+  .thumb-wrap.selected {
+    outline: 2px solid var(--accent);
+    transform: scale(.95);
+  }
+
+  .thumb-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    pointer-events: none;
+  }
+
+  .badge {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    background: var(--accent);
+    color: #0a0a0a;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 5px;
+    padding: 2px 6px;
+    letter-spacing: .5px;
+    line-height: 1.4;
+  }
+
+  /* ── Mini controls under thumb ────────────────────────────────── */
+  .controls {
+    display: flex;
+    gap: 3px;
+  }
+
+  .ctrl {
+    flex: 1;
+    background: var(--surf);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 0;
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+    text-align: center;
+    transition: background .1s;
+    font-family: inherit;
+  }
+  .ctrl:active { background: var(--surf2); }
+  .ctrl.del { border-color: #ff444433; color: var(--danger); }
+  .ctrl:disabled { opacity: .2; pointer-events: none; }
+
+  /* ── Bottom bar ───────────────────────────────────────────────── */
+  footer {
+    display: flex;
+    gap: 8px;
+    padding: 12px 14px;
+    padding-bottom: calc(12px + var(--safe-b));
+    border-top: 1px solid var(--border);
+    background: var(--bg);
+    flex-shrink: 0;
+  }
+
+  .add-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: var(--surf);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 6px;
+    cursor: pointer;
+    color: var(--text);
+    font-family: inherit;
+    transition: background .15s;
+  }
+  .add-btn:active { background: var(--surf2); }
+
+  .add-btn .icon { font-size: 20px; }
+  .add-btn .lbl { font-size: 11px; color: var(--muted); letter-spacing: .5px; }
+
+  #gen-btn {
+    flex: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: var(--accent);
+    border: none;
+    border-radius: var(--radius);
+    padding: 14px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #0a0a0a;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: .3px;
+    transition: opacity .2s, transform .1s;
+    position: relative;
+    overflow: hidden;
+  }
+  #gen-btn:active { transform: scale(.97); }
+  #gen-btn:disabled { opacity: .25; pointer-events: none; }
+
+  #gen-btn .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid #0a0a0a44;
+    border-top-color: #0a0a0a;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    display: none;
+  }
+  #gen-btn.loading .spinner { display: block; }
+  #gen-btn.loading .gen-label { display: none; }
+
+  /* ── Progress bar ─────────────────────────────────────────────── */
+  #progress-wrap {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 3px;
+    background: #0a0a0a33;
+    display: none;
+  }
+  #progress-bar {
+    height: 100%;
+    background: #0a0a0a66;
+    width: 0%;
+    transition: width .3s ease;
+  }
+
+  /* ── Toast ────────────────────────────────────────────────────── */
+  #toast {
+    position: fixed;
+    bottom: calc(80px + var(--safe-b));
+    left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--surf2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 13px;
+    padding: 10px 18px;
+    border-radius: 100px;
+    opacity: 0;
+    transition: opacity .25s, transform .25s;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 99;
+  }
+  #toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* ── Hidden file input ────────────────────────────────────────── */
+  #file-input { display: none; }
+
+  /* ── Animations ───────────────────────────────────────────────── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes popIn {
+    from { opacity: 0; transform: scale(.85); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <header>
+    <div class="logo">
+      <div class="logo-title">IMG <span>→</span> PDF</div>
+      <div class="logo-sub" id="counter">Aucune image</div>
+    </div>
+    <button id="clear-btn" onclick="clearAll()">✕ Vider</button>
+  </header>
+
+  <div id="swap-banner">↕ Tapez une autre image pour échanger · retapez la même pour annuler</div>
+
+  <div id="scroll">
+    <div id="empty">
+      <div class="empty-icon">◻</div>
+      <div class="empty-title">Aucune image</div>
+      <div class="empty-desc">Ajoutez des images depuis votre galerie. Chaque image deviendra une page du PDF.</div>
+    </div>
+    <div id="grid" style="display:none"></div>
+  </div>
+
+  <footer>
+    <button class="add-btn" onclick="pickGallery()">
+      <span class="icon">⊞</span>
+      <span class="lbl">Galerie</span>
+    </button>
+    <button class="add-btn" onclick="pickCamera()">
+      <span class="icon">◎</span>
+      <span class="lbl">Caméra</span>
+    </button>
+    <button id="gen-btn" disabled onclick="generatePdf()">
+      <div class="spinner"></div>
+      <span class="gen-label">⬇ Exporter PDF</span>
+      <div id="progress-wrap"><div id="progress-bar"></div></div>
+    </button>
+  </footer>
+</div>
+
+<input type="file" id="file-input" accept="image/*" multiple/>
+<div id="toast"></div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+const state = {
+  images: [],    // { id, dataUrl, name }
+  swapId: null,
+};
+
+// ── DOM refs ───────────────────────────────────────────────────────────────
+const grid      = document.getElementById('grid');
+const empty     = document.getElementById('empty');
+const counter   = document.getElementById('counter');
+const clearBtn  = document.getElementById('clear-btn');
+const genBtn    = document.getElementById('gen-btn');
+const swapBanner= document.getElementById('swap-banner');
+const fileInput = document.getElementById('file-input');
+const progressWrap = document.getElementById('progress-wrap');
+const progressBar  = document.getElementById('progress-bar');
+
+// ── Unique ID ──────────────────────────────────────────────────────────────
+let _id = 0;
+const uid = () => 'img_' + (++_id);
+
+// ── File picking ───────────────────────────────────────────────────────────
+function pickGallery() {
+  fileInput.removeAttribute('capture');
+  fileInput.setAttribute('multiple', '');
+  fileInput.click();
+}
+
+function pickCamera() {
+  fileInput.setAttribute('capture', 'environment');
+  fileInput.removeAttribute('multiple');
+  fileInput.click();
+}
+
+fileInput.addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files || []);
+  if (!files.length) return;
+
+  for (const file of files) {
+    const dataUrl = await readFile(file);
+    state.images.push({ id: uid(), dataUrl, name: file.name });
+  }
+  fileInput.value = '';
+  render();
+  toast(`${files.length} image${files.length > 1 ? 's' : ''} ajoutée${files.length > 1 ? 's' : ''}`);
+});
+
+function readFile(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────
+function render() {
+  const n = state.images.length;
+
+  // counter
+  counter.textContent = n === 0
+    ? 'Aucune image'
+    : `${n} image${n > 1 ? 's' : ''} · ${n} page${n > 1 ? 's' : ''}`;
+
+  // toggle views
+  empty.style.display = n === 0 ? 'flex' : 'none';
+  grid.style.display  = n === 0 ? 'none' : 'grid';
+  clearBtn.style.display = n === 0 ? 'none' : 'block';
+  genBtn.disabled = n === 0;
+
+  // swap banner
+  swapBanner.style.display = state.swapId ? 'block' : 'none';
+
+  // build cards
+  grid.innerHTML = '';
+  state.images.forEach((img, idx) => {
+    const isSelected = state.swapId === img.id;
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="thumb-wrap ${isSelected ? 'selected' : ''}" onclick="handleThumb('${img.id}')">
+        <img src="${img.dataUrl}" loading="lazy"/>
+        <div class="badge">${idx + 1}</div>
+      </div>
+      <div class="controls">
+        <button class="ctrl" onclick="move('${img.id}',-1)" ${idx === 0 ? 'disabled' : ''}>↑</button>
+        <button class="ctrl" onclick="move('${img.id}',1)"  ${idx === n-1 ? 'disabled' : ''}>↓</button>
+        <button class="ctrl del" onclick="remove('${img.id}')">✕</button>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+// ── Actions ────────────────────────────────────────────────────────────────
+function handleThumb(id) {
+  if (!state.swapId) {
+    state.swapId = id;
+    render();
+    return;
+  }
+  if (state.swapId === id) {
+    state.swapId = null;
+    render();
+    return;
+  }
+  // swap
+  const iA = state.images.findIndex(x => x.id === state.swapId);
+  const iB = state.images.findIndex(x => x.id === id);
+  if (iA !== -1 && iB !== -1) {
+    [state.images[iA], state.images[iB]] = [state.images[iB], state.images[iA]];
+  }
+  state.swapId = null;
+  render();
+}
+
+function move(id, dir) {
+  const i = state.images.findIndex(x => x.id === id);
+  const j = i + dir;
+  if (j < 0 || j >= state.images.length) return;
+  [state.images[i], state.images[j]] = [state.images[j], state.images[i]];
+  render();
+}
+
+function remove(id) {
+  state.images = state.images.filter(x => x.id !== id);
+  if (state.swapId === id) state.swapId = null;
+  render();
+}
+
+function clearAll() {
+  if (!confirm(`Supprimer les ${state.images.length} images ?`)) return;
+  state.images = [];
+  state.swapId = null;
+  render();
+}
+
+// ── PDF Generation ─────────────────────────────────────────────────────────
+async function generatePdf() {
+  if (!state.images.length) return;
+
+  genBtn.classList.add('loading');
+  genBtn.disabled = true;
+  progressWrap.style.display = 'block';
+  progressBar.style.width = '0%';
+
+  try {
+    const { jsPDF } = window.jspdf;
+
+    // Load first image to determine orientation
+    const dims = await Promise.all(state.images.map(img => getImageDims(img.dataUrl)));
+
+    // Create PDF with first page orientation
+    const first = dims[0];
+    const orientation = first.w >= first.h ? 'landscape' : 'portrait';
+    const pdf = new jsPDF({ orientation, unit: 'mm', format: 'a4' });
+
+    const A4_W = 210, A4_H = 297;
+
+    for (let i = 0; i < state.images.length; i++) {
+      const img = state.images[i];
+      const dim = dims[i];
+      const isLandscape = dim.w >= dim.h;
+
+      if (i > 0) {
+        pdf.addPage(isLandscape ? [297, 210] : [210, 297], isLandscape ? 'landscape' : 'portrait');
+      }
+
+      const pageW = isLandscape ? A4_H : A4_W;
+      const pageH = isLandscape ? A4_W : A4_H;
+      const margin = 8;
+      const maxW = pageW - margin * 2;
+      const maxH = pageH - margin * 2;
+
+      // Fit image maintaining aspect ratio
+      let drawW = maxW, drawH = (dim.h / dim.w) * maxW;
+      if (drawH > maxH) { drawH = maxH; drawW = (dim.w / dim.h) * maxH; }
+
+      const x = margin + (maxW - drawW) / 2;
+      const y = margin + (maxH - drawH) / 2;
+
+      const format = guessFormat(img.dataUrl);
+      pdf.addImage(img.dataUrl, format, x, y, drawW, drawH);
+
+      // Update progress
+      progressBar.style.width = `${((i + 1) / state.images.length) * 100}%`;
+      await tick();
+    }
+
+    // Save
+    const filename = `images-${datestamp()}.pdf`;
+    pdf.save(filename);
+    toast('✓ PDF exporté !');
+
+  } catch (err) {
+    console.error(err);
+    toast('⚠ Erreur lors de la génération');
+  } finally {
+    genBtn.classList.remove('loading');
+    genBtn.disabled = false;
+    progressWrap.style.display = 'none';
+    progressBar.style.width = '0%';
+  }
+}
+
+function getImageDims(dataUrl) {
+  return new Promise((res) => {
+    const img = new Image();
+    img.onload = () => res({ w: img.naturalWidth, h: img.naturalHeight });
+    img.src = dataUrl;
+  });
+}
+
+function guessFormat(dataUrl) {
+  if (dataUrl.includes('image/png'))  return 'PNG';
+  if (dataUrl.includes('image/webp')) return 'WEBP';
+  return 'JPEG';
+}
+
+function datestamp() {
+  const d = new Date();
+  return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}-${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+function tick() {
+  return new Promise(r => setTimeout(r, 0));
+}
+
+// ── Toast ──────────────────────────────────────────────────────────────────
+let _toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+render();
+</script>
+</body>
+</html>
